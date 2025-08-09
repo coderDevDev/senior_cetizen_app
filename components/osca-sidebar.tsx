@@ -50,43 +50,43 @@ export function OSCASidebar({ isOpen, onClose }: OSCASidebarProps) {
       icon: Users,
       href: '/dashboard/osca/seniors',
       badge: '15,420'
-    },
-    {
-      id: 'announcements',
-      label: 'Announcements',
-      icon: Bell,
-      href: '/dashboard/osca/announcements'
-    },
-    {
-      id: 'reports',
-      label: 'Reports',
-      icon: BarChart3,
-      href: '/dashboard/osca/reports'
-    },
-    {
-      id: 'census',
-      label: 'Census Data',
-      icon: Database,
-      href: '/dashboard/osca/census'
-    },
-    {
-      id: 'alerts',
-      label: 'Alerts',
-      icon: AlertTriangle,
-      href: '/dashboard/osca/alerts'
-    },
-    {
-      id: 'messages',
-      label: 'Messages',
-      icon: MessageSquare,
-      href: '/dashboard/osca/messages'
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: Settings,
-      href: '/dashboard/osca/settings'
     }
+    // {
+    //   id: 'announcements',
+    //   label: 'Announcements',
+    //   icon: Bell,
+    //   href: '/dashboard/osca/announcements'
+    // },
+    // {
+    //   id: 'reports',
+    //   label: 'Reports',
+    //   icon: BarChart3,
+    //   href: '/dashboard/osca/reports'
+    // },
+    // {
+    //   id: 'census',
+    //   label: 'Census Data',
+    //   icon: Database,
+    //   href: '/dashboard/osca/census'
+    // },
+    // {
+    //   id: 'alerts',
+    //   label: 'Alerts',
+    //   icon: AlertTriangle,
+    //   href: '/dashboard/osca/alerts'
+    // },
+    // {
+    //   id: 'messages',
+    //   label: 'Messages',
+    //   icon: MessageSquare,
+    //   href: '/dashboard/osca/messages'
+    // },
+    // {
+    //   id: 'settings',
+    //   label: 'Settings',
+    //   icon: Settings,
+    //   href: '/dashboard/osca/settings'
+    // }
   ];
 
   const handleNavigation = (item: any) => {
@@ -179,7 +179,7 @@ export function OSCASidebar({ isOpen, onClose }: OSCASidebarProps) {
       </nav>
 
       {/* Quick Actions */}
-      <div className="p-4 border-t">
+      {/* <div className="p-4 border-t">
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
           Quick Actions
         </h3>
@@ -197,7 +197,7 @@ export function OSCASidebar({ isOpen, onClose }: OSCASidebarProps) {
             Export Report
           </Button>
         </div>
-      </div>
+      </div> */}
 
       {/* Footer */}
       <div className="p-4 border-t">

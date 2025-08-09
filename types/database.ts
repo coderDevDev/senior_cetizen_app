@@ -82,8 +82,13 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
+          first_name?: string;
+          last_name?: string;
           barangay: string;
           barangay_code: string;
+          region_code?: string;
+          province_code?: string;
+          city_code?: string;
           date_of_birth: string;
           gender: 'male' | 'female' | 'other';
           address: string;
@@ -97,6 +102,7 @@ export interface Database {
           emergency_contact_relationship?: string;
           osca_id?: string;
           senior_id_photo?: string;
+          profile_picture?: string;
           documents: string[];
           status: 'active' | 'deceased' | 'inactive';
           registration_date: string;
@@ -131,8 +137,13 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
+          first_name?: string;
+          last_name?: string;
           barangay: string;
           barangay_code: string;
+          region_code?: string;
+          province_code?: string;
+          city_code?: string;
           date_of_birth: string;
           gender: 'male' | 'female' | 'other';
           address: string;
@@ -146,6 +157,7 @@ export interface Database {
           emergency_contact_relationship?: string;
           osca_id?: string;
           senior_id_photo?: string;
+          profile_picture?: string;
           documents?: string[];
           status?: 'active' | 'deceased' | 'inactive';
           registration_date?: string;
@@ -159,8 +171,13 @@ export interface Database {
         Update: {
           id?: string;
           user_id?: string;
+          first_name?: string;
+          last_name?: string;
           barangay?: string;
           barangay_code?: string;
+          region_code?: string;
+          province_code?: string;
+          city_code?: string;
           date_of_birth?: string;
           gender?: 'male' | 'female' | 'other';
           address?: string;
@@ -174,6 +191,7 @@ export interface Database {
           emergency_contact_relationship?: string;
           osca_id?: string;
           senior_id_photo?: string;
+          profile_picture?: string;
           documents?: string[];
           status?: 'active' | 'deceased' | 'inactive';
           registration_date?: string;

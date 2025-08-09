@@ -121,7 +121,7 @@ export function IDPictureUpload({
         onValidationChange?.(result.isValid, result);
 
         // Update the onChange with validation result
-        const base64Result = await new Promise<string>((resolve) => {
+        const base64Result = await new Promise<string>(resolve => {
           const reader = new FileReader();
           reader.onload = () => {
             resolve(reader.result as string);
@@ -190,7 +190,7 @@ export function IDPictureUpload({
   const handleValidationToggle = (enabled: boolean) => {
     setValidationEnabled(enabled);
     onValidationToggle?.(enabled);
-    
+
     // If validation is disabled and we have a current image, clear validation result
     if (!enabled && value) {
       setValidationResult(null);
@@ -223,7 +223,7 @@ export function IDPictureUpload({
       case 'passport':
         return 'Passport';
       case 'drivers_license':
-        return 'Driver\'s License';
+        return "Driver's License";
       case 'national_id':
         return 'National ID';
       case 'senior_citizen_id':
@@ -294,9 +294,13 @@ export function IDPictureUpload({
                     <ImageIcon className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">ID Picture Uploaded</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      ID Picture Uploaded
+                    </h3>
                     <p className="text-sm text-gray-500">
-                      {validationEnabled ? 'Validation in progress...' : 'Photo uploaded successfully'}
+                      {validationEnabled
+                        ? 'Validation in progress...'
+                        : 'Photo uploaded successfully'}
                     </p>
                   </div>
                 </div>
@@ -324,19 +328,24 @@ export function IDPictureUpload({
                       </span>
                     </div>
                     <Badge
-                      variant={validationResult.isValid ? 'default' : 'destructive'}>
-                      {Math.round(validationResult.confidence * 100)}% Confidence
+                      variant={
+                        validationResult.isValid ? 'default' : 'destructive'
+                      }>
+                      {Math.round(validationResult.confidence * 100)}%
+                      Confidence
                     </Badge>
                   </div>
 
-                  {validationResult.documentType && validationResult.documentType !== 'unknown' && (
-                    <div className="flex items-center space-x-2 text-sm">
-                      {getDocumentTypeIcon(validationResult.documentType)}
-                      <span className="text-gray-600">
-                        Detected: {getDocumentTypeLabel(validationResult.documentType)}
-                      </span>
-                    </div>
-                  )}
+                  {validationResult.documentType &&
+                    validationResult.documentType !== 'unknown' && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        {getDocumentTypeIcon(validationResult.documentType)}
+                        <span className="text-gray-600">
+                          Detected:{' '}
+                          {getDocumentTypeLabel(validationResult.documentType)}
+                        </span>
+                      </div>
+                    )}
 
                   {validationResult.errors.length > 0 && (
                     <Alert variant="destructive">
@@ -357,14 +366,17 @@ export function IDPictureUpload({
                         Detected Text:
                       </h4>
                       <div className="text-xs text-gray-600 space-y-1">
-                        {validationResult.detectedText.slice(0, 5).map((text, index) => (
-                          <div key={index} className="truncate">
-                            {text}
-                          </div>
-                        ))}
+                        {validationResult.detectedText
+                          .slice(0, 5)
+                          .map((text, index) => (
+                            <div key={index} className="truncate">
+                              {text}
+                            </div>
+                          ))}
                         {validationResult.detectedText.length > 5 && (
                           <div className="text-gray-400">
-                            ... and {validationResult.detectedText.length - 5} more lines
+                            ... and {validationResult.detectedText.length - 5}{' '}
+                            more lines
                           </div>
                         )}
                       </div>
@@ -378,7 +390,8 @@ export function IDPictureUpload({
                 <Alert>
                   <ShieldOff className="w-4 h-4" />
                   <AlertDescription>
-                    ID validation is disabled. Photo uploaded without validation.
+                    ID validation is disabled. Photo uploaded without
+                    validation.
                   </AlertDescription>
                 </Alert>
               )}
@@ -404,7 +417,7 @@ export function IDPictureUpload({
         type="file"
         className="hidden"
         accept={allowedFormats.join(',')}
-        onChange={(e) => handleFileSelect(e.target.files)}
+        onChange={e => handleFileSelect(e.target.files)}
         disabled={disabled}
       />
     </div>

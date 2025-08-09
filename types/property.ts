@@ -17,6 +17,10 @@ export interface Beneficiary {
 export interface SeniorCitizen {
   id: string;
   userId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
   barangay: string;
   barangayCode: string;
   dateOfBirth: string;
@@ -51,6 +55,7 @@ export interface SeniorCitizen {
   emergencyContactRelationship?: string;
   oscaId?: string;
   seniorIdPhoto?: string;
+  profilePicture?: string;
   documents: string[];
   status: 'active' | 'deceased' | 'inactive';
   registrationDate: string;

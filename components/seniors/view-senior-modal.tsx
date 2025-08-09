@@ -77,21 +77,6 @@ export function ViewSeniorModal({
     }
   };
 
-  // Mock name data - in real app, this would come from user data
-  const getSeniorName = () => {
-    switch (senior.oscaId) {
-      case 'OSCA-2024-001':
-        return { firstName: 'Maria', lastName: 'Santos' };
-      case 'OSCA-2024-002':
-        return { firstName: 'Juan', lastName: 'Dela Cruz' };
-      case 'OSCA-2024-003':
-        return { firstName: 'Ana', lastName: 'Reyes' };
-      default:
-        return { firstName: 'Unknown', lastName: 'User' };
-    }
-  };
-
-  const seniorName = getSeniorName();
   const age = getAge(senior.dateOfBirth);
 
   return (
@@ -103,8 +88,7 @@ export function ViewSeniorModal({
             Senior Citizen Details
           </DialogTitle>
           <DialogDescription className="text-[#666666]">
-            View complete information for {seniorName.firstName}{' '}
-            {seniorName.lastName}
+            View complete information for {senior.firstName} {senior.lastName}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,15 +98,15 @@ export function ViewSeniorModal({
             <Avatar className="h-24 w-24">
               <AvatarImage src={senior.seniorIdPhoto} alt="Senior" />
               <AvatarFallback className="bg-[#00af8f]/10 text-[#00af8f] text-2xl">
-                {seniorName.firstName.charAt(0)}
-                {seniorName.lastName.charAt(0)}
+                {senior.firstName?.charAt(0)}
+                {senior.lastName?.charAt(0)}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
                 <h2 className="text-2xl font-bold text-[#333333]">
-                  {seniorName.firstName} {seniorName.lastName}
+                  {senior.firstName} {senior.lastName}
                 </h2>
                 {getStatusBadge(senior.status)}
               </div>

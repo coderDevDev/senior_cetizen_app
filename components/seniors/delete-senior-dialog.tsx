@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Trash2, AlertTriangle, User, Shield } from 'lucide-react';
 import type { SeniorCitizen } from '@/types/property';
+import { toast } from 'sonner';
 
 interface DeleteSeniorDialogProps {
   isOpen: boolean;
@@ -32,21 +33,11 @@ export function DeleteSeniorDialog({
 }: DeleteSeniorDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Mock name data - in real app, this would come from user data
-  const getSeniorName = () => {
-    switch (senior.oscaId) {
-      case 'OSCA-2024-001':
-        return { firstName: 'Maria', lastName: 'Santos' };
-      case 'OSCA-2024-002':
-        return { firstName: 'Juan', lastName: 'Dela Cruz' };
-      case 'OSCA-2024-003':
-        return { firstName: 'Ana', lastName: 'Reyes' };
-      default:
-        return { firstName: 'Unknown', lastName: 'User' };
-    }
+  // Use real name data from senior object
+  const seniorName = {
+    firstName: senior.firstName || 'Unknown',
+    lastName: senior.lastName || 'User'
   };
-
-  const seniorName = getSeniorName();
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -54,12 +45,33 @@ export function DeleteSeniorDialog({
     try {
       console.log('Deleting senior citizen:', senior.id);
 
-      // TODO: Implement API call to delete senior citizen
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      // Import and call the delete API
+      const { SeniorCitizensAPI } = await import('@/lib/api/senior-citizens');
+      const result = await SeniorCitizensAPI.deleteSeniorCitizen(senior.id);
 
-      onSuccess();
+      if (result.success) {
+        toast.success('Senior citizen deleted successfully!', {
+          style: {
+            background: '#10B981',
+            color: '#FFFFFF',
+            border: '1px solid #059669'
+          },
+          duration: 4000
+        });
+        onSuccess();
+      } else {
+        throw new Error('Failed to delete senior citizen');
+      }
     } catch (error) {
       console.error('Error deleting senior citizen:', error);
+      toast.error('Failed to delete senior citizen', {
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          border: '1px solid #DC2626'
+        },
+        duration: 4000
+      });
     } finally {
       setIsDeleting(false);
     }

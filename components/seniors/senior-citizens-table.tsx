@@ -86,8 +86,10 @@ export function SeniorCitizensTable({
     });
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstName?: string, lastName?: string) => {
+    const first = firstName || 'U';
+    const last = lastName || 'U';
+    return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
   };
 
   return (
@@ -145,18 +147,16 @@ export function SeniorCitizensTable({
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium text-[#333333]">
-                          {/* Mock name - in real app, this would come from user data */}
-                          {senior.oscaId === 'OSCA-2024-001'
-                            ? 'Maria Santos'
-                            : senior.oscaId === 'OSCA-2024-002'
-                            ? 'Juan Dela Cruz'
-                            : senior.oscaId === 'OSCA-2024-003'
-                            ? 'Ana Reyes'
-                            : 'Unknown'}
+                        <div className="font-bold text-[#333333]">
+                          {senior.firstName || 'Unknown'}{' '}
+                          {senior.lastName || 'User'}
                         </div>
                         <div className="text-sm text-[#666666]">
-                          {senior.gender === 'male' ? 'Male' : 'Female'}
+                          {senior.gender === 'male'
+                            ? 'Male'
+                            : senior.gender === 'female'
+                            ? 'Female'
+                            : 'Other'}
                         </div>
                       </div>
                     </div>
