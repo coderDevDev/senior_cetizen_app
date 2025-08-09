@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { OSCASidebar } from '@/components/osca-sidebar';
 import { BASCASidebar } from '@/components/basca-sidebar';
 import { SeniorSidebar } from '@/components/senior-sidebar';
+import { MiniPWAStatus } from '@/components/ui/pwa-status';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -71,7 +72,12 @@ export default function DashboardLayout({
     <div className="flex min-h-screen bg-gradient-to-br from-[#feffff] to-[#ffffff]">
       {renderSidebar()}
       <main className="flex-1 bg-white">
-        <div className="max-w-7xl mx-auto p-6">{children}</div>
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="flex justify-end mb-4">
+            <MiniPWAStatus />
+          </div>
+          {children}
+        </div>
       </main>
     </div>
   );
