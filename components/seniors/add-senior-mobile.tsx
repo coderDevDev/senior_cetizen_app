@@ -944,14 +944,21 @@ export function AddSeniorMobile({
                       Pre-filled
                     </Badge>
                   </div>
-                  
-                  {addressData.region && addressData.province && addressData.city && addressData.barangay && (
-                    <div className="mb-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                      <p className="text-xs text-gray-700">
-                        <strong>Pre-filled from your profile:</strong> {addressData.barangay?.brgy_name}, {addressData.city?.city_name}, {addressData.province?.province_name}, {addressData.region?.region_name}
-                      </p>
-                    </div>
-                  )}
+
+                  {addressData.region &&
+                    addressData.province &&
+                    addressData.city &&
+                    addressData.barangay && (
+                      <div className="mb-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                        <p className="text-xs text-gray-700">
+                          <strong>Pre-filled from your profile:</strong>{' '}
+                          {addressData.barangay?.brgy_name},{' '}
+                          {addressData.city?.city_name},{' '}
+                          {addressData.province?.province_name},{' '}
+                          {addressData.region?.region_name}
+                        </p>
+                      </div>
+                    )}
                   <Textarea
                     id="address"
                     {...form.register('address')}

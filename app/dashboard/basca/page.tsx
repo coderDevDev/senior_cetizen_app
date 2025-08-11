@@ -186,29 +186,25 @@ export default function BASCADashboard() {
       title: 'New Senior',
       icon: UserPlus,
       action: handleAddSenior,
-      color: 'bg-[#00af8f]',
-      textColor: 'text-white'
+      color: 'bg-[#00af8f]'
     },
     {
       title: 'Offline Mode',
       icon: Database,
       action: () => setActiveTab('offline'),
-      color: 'bg-[#ffd416]',
-      textColor: 'text-white'
+      color: 'bg-[#ffd416]'
     },
     {
       title: 'Sync Data',
       icon: Activity,
       action: () => setActiveTab('sync'),
-      color: 'bg-[#ff6b6b]',
-      textColor: 'text-white'
+      color: 'bg-[#ff6b6b]'
     },
     {
       title: 'View Seniors',
       icon: Users,
       action: () => setActiveTab('seniors'),
-      color: 'bg-[#4ecdc4]',
-      textColor: 'text-white'
+      color: 'bg-[#4ecdc4]'
     }
   ];
 
@@ -359,13 +355,25 @@ export default function BASCADashboard() {
           {quickActions.map((action, index) => {
             const Icon = action.icon;
             return (
-              <Button
+              <Card
                 key={index}
-                onClick={action.action}
-                className={`h-16 ${action.color} ${action.textColor} rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all duration-200 flex flex-col items-center justify-center space-y-1 transform`}>
-                <Icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{action.title}</span>
-              </Button>
+                className="border-0 bg-white shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-95"
+                onClick={action.action}>
+                <CardContent className="p-4 h-20 flex flex-col items-center justify-center space-y-2">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${action.color} bg-opacity-10`}>
+                    <Icon
+                      className={`w-5 h-5 ${action.color.replace(
+                        'bg-',
+                        'text-'
+                      )}`}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-[#333333] text-center leading-tight">
+                    {action.title}
+                  </span>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
