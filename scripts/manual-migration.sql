@@ -22,7 +22,22 @@ ADD COLUMN IF NOT EXISTS province_code TEXT;
 ALTER TABLE public.senior_citizens 
 ADD COLUMN IF NOT EXISTS city_code TEXT;
 
--- 2. Create enum types (safe to run multiple times)
+-- 2. BASCA MEMBERS TABLE MIGRATIONS
+-- Add id_photo column for storing ID document photos
+ALTER TABLE public.basca_members 
+ADD COLUMN IF NOT EXISTS id_photo TEXT;
+
+-- Add structured address columns for Philippine address selector
+ALTER TABLE public.basca_members 
+ADD COLUMN IF NOT EXISTS region_code TEXT;
+
+ALTER TABLE public.basca_members 
+ADD COLUMN IF NOT EXISTS province_code TEXT;
+
+ALTER TABLE public.basca_members 
+ADD COLUMN IF NOT EXISTS city_code TEXT;
+
+-- 3. Create enum types (safe to run multiple times)
 DO $$ 
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'housing_condition') THEN
@@ -44,7 +59,7 @@ BEGIN
     END IF;
 END $$;
 
--- 3. Add new columns with default values (safe to run multiple times)
+-- 4. Add new columns with default values (safe to run multiple times)
 ALTER TABLE public.senior_citizens 
 ADD COLUMN IF NOT EXISTS housing_condition housing_condition DEFAULT 'owned';
 
@@ -60,7 +75,7 @@ ADD COLUMN IF NOT EXISTS monthly_pension DECIMAL(10,2) DEFAULT 0;
 ALTER TABLE public.senior_citizens 
 ADD COLUMN IF NOT EXISTS living_condition living_condition DEFAULT 'independent';
 
--- 4. Create beneficiaries table (safe to run multiple times)
+-- 5. Create beneficiaries table (safe to run multiple times)
 CREATE TABLE IF NOT EXISTS public.beneficiaries (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     senior_citizen_id UUID REFERENCES public.senior_citizens(id) ON DELETE CASCADE NOT NULL,
@@ -77,10 +92,10 @@ CREATE TABLE IF NOT EXISTS public.beneficiaries (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 5. Enable RLS on beneficiaries table
+-- 6. Enable RLS on beneficiaries table
 ALTER TABLE public.beneficiaries ENABLE ROW LEVEL SECURITY;
 
--- 6. Create RLS policies for beneficiaries (safe to run multiple times)
+-- 7. Create RLS policies for beneficiaries (safe to run multiple times)
 DO $$ 
 BEGIN
     IF NOT EXISTS (
@@ -147,7 +162,7 @@ BEGIN
     END IF;
 END $$;
 
--- 7. Create trigger function for updating updated_at (safe to run multiple times)
+-- 8. Create trigger function for updating updated_at (safe to run multiple times)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -156,7 +171,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 8. Add trigger for beneficiaries table (safe to run multiple times)
+-- 9. Add trigger for beneficiaries table (safe to run multiple times)
 DO $$ 
 BEGIN
     IF NOT EXISTS (
@@ -169,5 +184,5 @@ BEGIN
     END IF;
 END $$;
 
--- 9. Verify the migration
+-- 10. Verify the migration
 SELECT 'Migration completed successfully!' as message;

@@ -50,6 +50,13 @@ export function OSCASidebar({ isOpen, onClose }: OSCASidebarProps) {
       icon: Users,
       href: '/dashboard/osca/seniors',
       badge: '15,420'
+    },
+    {
+      id: 'basca',
+      label: 'Basca Members',
+      icon: Users,
+      href: '/dashboard/osca/basca',
+      badge: '15,420'
     }
     // {
     //   id: 'announcements',

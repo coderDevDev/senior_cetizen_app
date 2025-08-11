@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { usePWA } from '@/hooks/usePWA';
+import { useCapacitor } from '@/hooks/useCapacitor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +25,7 @@ import {
   WifiOff,
   Download,
   RefreshCw,
-  Sync,
+  RotateCcw as Sync,
   Database,
   Settings,
   CheckCircle,
@@ -47,6 +48,8 @@ export function PWAStatus() {
     syncOfflineData,
     clearOfflineData
   } = usePWA();
+
+  const { isNative, platform, deviceInfo, appState } = useCapacitor();
 
   const [showDetails, setShowDetails] = useState(false);
 
@@ -182,10 +185,34 @@ export function PWAStatus() {
                         <Download className="w-4 h-4 text-blue-600" />
                         <span className="font-medium">App Status</span>
                       </div>
-                      <Badge variant={isInstalled ? 'default' : 'secondary'}>
-                        {isInstalled ? 'Installed' : 'Browser'}
+                      <Badge
+                        variant={
+                          isNative
+                            ? 'default'
+                            : isInstalled
+                            ? 'default'
+                            : 'secondary'
+                        }>
+                        {isNative
+                          ? `Native ${platform}`
+                          : isInstalled
+                          ? 'Installed'
+                          : 'Browser'}
                       </Badge>
                     </div>
+
+                    {/* Platform Info (Capacitor) */}
+                    {isNative && (
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="font-medium">Platform</span>
+                        </div>
+                        <Badge variant="default">
+                          {platform.toUpperCase()} {deviceInfo?.osVersion}
+                        </Badge>
+                      </div>
+                    )}
 
                     {/* Sync Status */}
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -320,4 +347,3 @@ export function MiniPWAStatus() {
     </TooltipProvider>
   );
 }
-

@@ -1,13 +1,39 @@
 Objectives
 The objectives of the researchers’ “Senior Citizen Information Management System and Senior Citizen Registration App” capstone project are the following:
-1. To develop a centralized web-based system for OSCA that enables comprehensive record management, benefit tracking, and the ability to add, edit, delete, and manage senior citizen records per barangay, as well as post announcements, alerts, and emergency updates relevant to senior citizens.
-2. To build a mobile registration application with offline data capture and auto-sync functionality to support fieldwork and minimize connectivity issues, ensuring that data is saved locally and automatically synchronized once the device regains internet access.
-3. To integrate a real-time SMS notification system that sends automatic alerts to registered senior citizens and/or their family members for announcements, benefit schedules, emergency notices, and other important updates.
-4. To develop a senior citizen self-service module, accessible via the mobile application, that allows senior citizens to log in securely, view their personal records and credentials, request official documents offered by OSCA/BASCA (e.g., IDs, certifications), schedule appointments with Barangay Health Workers (BHW), and request medical assistance or apply for available benefits.
-5. To ensure that senior citizens or their families can also access a web-based portal to check status updates, view announcements, and request corrections or modifications to their records for better transparency and participation.
-6. To reduce the risk of data loss, duplication, and manual encoding errors by at least 80% through the implementation of secure, cloud-based digital record-keeping and validation processes integrated across both the web and mobile systems.
-7. To include a built-in census management feature that tracks deceased, active, and incoming senior citizens per barangay, allowing OSCA to monitor demographic trends and maintain accurate, up-to-date records.
-8.To implement a multi-level user access control system, where the Superadmin (OSCA) has full system control, while Admins (BASCA) have restricted access limited to their assigned barangay, ensuring secure, accountable, and efficient task delegation and data privacy.
+1. To develop a centralized web-based system for OSCA that enables comprehensive record management, benefit tracking, and the ability to add, edit, delete, and manage senior citizen records per barangay, 
+
+as well as 
+post announcements, 
+alerts, and 
+emergency updates relevant to senior citizens.
+
+
+2. To build a mobile registration application with offline data capture 
+and auto-sync functionality to support fieldwork and minimize
+connectivity issues, ensuring that data is saved locally 
+and automatically synchronized once the device regains internet access.
+3. To integrate a real-time SMS notification system that 
+sends automatic alerts to registered senior citizens 
+and/or their family members for announcements, benefit schedules, 
+emergency notices, and other important updates.
+4. To develop a senior citizen self-service module,
+ accessible via the mobile application, that allows senior
+  citizens to log in securely, view their personal records and credentials, request official documents offered by OSCA/BASCA (e.g., IDs, certifications), schedule appointments with Barangay Health Workers (BHW), and request medical assistance or apply for available benefits.
+5. To ensure that senior citizens or their families can also
+ access a web-based portal to check status updates,
+  view announcements, and request corrections or modifications
+   to their records for better transparency and participation.
+6. To reduce the risk of data loss, duplication, 
+and manual encoding errors by at least 80% through the implementation of secure, cloud-based digital record-keeping and validation processes integrated across both the web and mobile systems.
+7. To include a built-in census management
+ feature that tracks deceased, active, and 
+ incoming senior citizens per barangay,
+  allowing OSCA to monitor demographic trends 
+  and maintain accurate, up-to-date records.
+8.To implement a multi-level user access control system, 
+where the Superadmin (OSCA) has full system control,
+ while Admins (BASCA) have restricted access limited to their assigned barangay,
+  ensuring secure, accountable, and efficient task delegation and data privacy.
 
 
 

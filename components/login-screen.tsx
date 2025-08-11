@@ -176,8 +176,8 @@ export function LoginScreen({
           <h1 className="text-3xl font-bold text-[#333333] mb-2">
             {config.title}
           </h1>
-          <p className="text-lg text-[#666666] mb-1">{config.subtitle}</p>
-          <p className="text-sm text-[#666666]">{config.description}</p>
+          {/* <p className="text-lg text-[#666666] mb-1">{config.subtitle}</p>
+          <p className="text-sm text-[#666666]">{config.description}</p> */}
         </div>
 
         {/* Login Form */}
