@@ -351,7 +351,7 @@ export default function BASCADashboard() {
       </div>
 
       {/* Quick Actions */}
-      {/* <div className="space-y-3">
+      <div className="space-y-3">
         <h3 className="text-base font-semibold text-[#333333] px-1">
           Quick Actions
         </h3>
@@ -369,7 +369,7 @@ export default function BASCADashboard() {
             );
           })}
         </div>
-      </div> */}
+      </div>
 
       {/* Recent Activity */}
       {/* <div className="space-y-3">

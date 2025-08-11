@@ -72,7 +72,7 @@ export default function DashboardLayout({
     <div className="flex min-h-screen bg-gradient-to-br from-[#feffff] to-[#ffffff]">
       {renderSidebar()}
       <main className="flex-1 bg-white">
-        <div className="max-w-7xl ">
+        <div className="max-w-7xl">
           {/* <div className="flex justify-end mb-4">
             <MiniPWAStatus />
           </div> */}

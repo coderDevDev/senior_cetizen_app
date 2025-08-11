@@ -286,9 +286,32 @@ export function AddSeniorMobile({
             const bascaMember = await BascaMembersAPI.getCurrentUserBascaMember(
               authState.user!.id
             );
-            console.log({ bascaMember });
             if (bascaMember && bascaMember.addressData) {
               setAddressData(bascaMember.addressData);
+
+              // Construct and pre-fill detailed address
+              const { region, province, city, barangay } =
+                bascaMember.addressData;
+              let fullAddress = '';
+              if (barangay?.brgy_name) fullAddress += `${barangay.brgy_name}, `;
+              if (city?.city_name) fullAddress += `${city.city_name}, `;
+              if (province?.province_name)
+                fullAddress += `${province.province_name}, `;
+              if (region?.region_name) fullAddress += `${region.region_name}`;
+
+              // Remove trailing comma and space if any
+              fullAddress = fullAddress.replace(/, $/, '');
+
+              form.setValue('address', fullAddress);
+              form.setValue('barangayCode', barangay?.brgy_code || ''); // Ensure barangayCode is set
+              form.setValue('barangay', barangay?.brgy_name || ''); // Set barangay name for form validation
+
+              console.log('Pre-filled address data:', {
+                fullAddress,
+                barangayCode: barangay?.brgy_code,
+                barangay: barangay?.brgy_name,
+                addressData: bascaMember.addressData
+              });
             }
           } catch (error) {
             console.error('Error fetching BASCA member data:', error);
@@ -326,7 +349,8 @@ export function AddSeniorMobile({
           'gender'
         ]);
       case 1: // Address Information
-        return await form.trigger(['barangay', 'barangayCode', 'address']);
+        // Only validate 'address' as barangay is now derived/pre-filled
+        return await form.trigger(['address']);
       case 2: // Contact Information
         return true; // Optional step
       case 3: // Emergency Contact
@@ -382,10 +406,13 @@ export function AddSeniorMobile({
           formValues.gender
         );
       case 1: // Address Information
+        // Only check for 'address' as barangay is now derived/pre-filled
         return !!(
-          formValues.barangay &&
-          formValues.barangayCode &&
-          formValues.address
+          formValues.address &&
+          addressData.region &&
+          addressData.province &&
+          addressData.city &&
+          addressData.barangay
         );
       case 2: // Contact Information
         return true; // Optional
@@ -897,19 +924,38 @@ export function AddSeniorMobile({
                   onChange={setAddressData}
                   disabled={true}
                 />
+                <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                  <p className="text-xs text-blue-800">
+                    <strong>Auto-filled:</strong> Address selection is
+                    automatically populated from your BASCA member profile.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label
-                    htmlFor="address"
-                    className="text-sm font-semibold text-gray-700">
-                    Detailed Address *
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label
+                      htmlFor="address"
+                      className="text-sm font-semibold text-gray-700">
+                      Detailed Address *
+                    </Label>
+                    <Badge variant="secondary" className="text-xs">
+                      Pre-filled
+                    </Badge>
+                  </div>
+                  
+                  {addressData.region && addressData.province && addressData.city && addressData.barangay && (
+                    <div className="mb-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-xs text-gray-700">
+                        <strong>Pre-filled from your profile:</strong> {addressData.barangay?.brgy_name}, {addressData.city?.city_name}, {addressData.province?.province_name}, {addressData.region?.region_name}
+                      </p>
+                    </div>
+                  )}
                   <Textarea
                     id="address"
                     {...form.register('address')}
-                    placeholder="Enter detailed address (street, house number, etc.)"
+                    placeholder="Address is automatically filled from your profile. You can add additional details like street name, house number, etc."
                     className="min-h-[80px] text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white resize-none"
                   />
                   {form.formState.errors.address && (
@@ -918,31 +964,28 @@ export function AddSeniorMobile({
                       {form.formState.errors.address.message}
                     </p>
                   )}
-                </div>
 
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="barangay"
-                    className="text-sm font-semibold text-gray-700">
-                    Barangay *
-                  </Label>
-                  <Input
-                    id="barangay"
-                    {...form.register('barangay')}
-                    placeholder="Enter barangay"
-                    className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
-                    value={form.watch('barangay')}
-                    onChange={e => {
-                      form.setValue('barangay', e.target.value);
-                      form.setValue('barangayCode', e.target.value);
-                    }}
-                  />
-                  {form.formState.errors.barangay && (
-                    <p className="text-red-500 text-xs flex items-center mt-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full mr-2"></span>
-                      {form.formState.errors.barangay.message}
+                  <div className="mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <p className="text-xs text-green-800">
+                      💡 <strong>Note:</strong> The address field is
+                      automatically populated with your assigned barangay, city,
+                      province, and region. You can add specific street details
+                      if needed.
                     </p>
-                  )}
+                  </div>
+
+                  {addressData.region &&
+                    addressData.province &&
+                    addressData.city &&
+                    addressData.barangay && (
+                      <div className="mt-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <p className="text-xs text-emerald-800 flex items-center">
+                          <Check className="w-3 h-3 mr-2" />
+                          <strong>Ready:</strong> Address information is
+                          complete. You can proceed to the next step.
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
