@@ -547,84 +547,211 @@ export class BascaMembersAPI {
     position: string
   ): Promise<BascaMember[]> {
     try {
-      const { data, error } = await supabase
-        .from('users')
+      // First get basca members by position
+      const { data: bascaData, error: bascaError } = await supabase
+        .from('basca_members')
         .select('*')
-        .eq('role', 'basca')
         .eq('position', position)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) {
+      if (bascaError) {
         throw new Error(
-          `Failed to fetch basca members by position: ${error.message}`
+          `Failed to fetch basca members by position: ${bascaError.message}`
         );
       }
 
-      // Get additional data from basca_members table
-      const userIds = data.map(user => user.id);
-      let additionalData: any[] = [];
-
-      if (userIds.length > 0) {
-        try {
-          const { data: bascaData } = await supabase
-            .from('basca_members')
-            .select('*')
-            .in('user_id', userIds);
-          additionalData = bascaData || [];
-        } catch (error) {
-          console.warn('Failed to fetch additional basca member data:', error);
-        }
+      if (!bascaData || bascaData.length === 0) {
+        return [];
       }
 
-      return data.map(user => {
-        const additional = additionalData.find(ad => ad.user_id === user.id);
+      // Get user data for all basca members
+      const userIds = bascaData.map(item => item.user_id);
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', userIds);
+
+      if (userError) {
+        throw new Error(`Failed to fetch user data: ${userError.message}`);
+      }
+
+      const members: BascaMember[] = bascaData.map(item => {
+        const user = userData?.find(u => u.id === item.user_id);
         return {
-          id: user.id,
-          userId: user.id,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          email: user.email,
-          phone: user.phone,
-          barangay: user.barangay,
-          barangayCode: user.barangay_code,
-          address: additional?.address || '',
-          addressData: additional
-            ? {
-                region: additional.region_code
-                  ? { region_code: additional.region_code, region_name: '' }
-                  : undefined,
-                province: additional.province_code
-                  ? {
-                      province_code: additional.province_code,
-                      province_name: ''
-                    }
-                  : undefined,
-                city: additional.city_code
-                  ? { city_code: additional.city_code, city_name: '' }
-                  : undefined,
-                barangay: additional.barangay_code
-                  ? {
-                      brgy_code: additional.barangay_code,
-                      brgy_name: additional.barangay || ''
-                    }
-                  : undefined
-              }
-            : undefined,
-          position: user.position,
-          department: user.department,
-          employeeId: user.employee_id,
-          isActive: user.is_verified !== false,
-          joinDate: additional?.join_date || user.created_at,
-          profilePicture: user.avatar_url,
-          idPhoto: additional?.id_photo || '',
-          notes: additional?.notes,
-          created_at: user.created_at,
-          updated_at: user.updated_at,
-          created_by: user.created_by
+          id: item.id,
+          userId: item.user_id,
+          firstName: user?.first_name || '',
+          lastName: user?.last_name || '',
+          email: user?.email || '',
+          phone: user?.phone || '',
+          barangay: user?.barangay || '',
+          barangayCode: user?.barangay_code || '',
+          address: item.address,
+          addressData: {
+            region:
+              item.region_code && item.region_name
+                ? {
+                    region_code: item.region_code,
+                    region_name: item.region_name
+                  }
+                : undefined,
+            province:
+              item.province_code && item.province_name
+                ? {
+                    province_code: item.province_code,
+                    province_name: item.province_name
+                  }
+                : undefined,
+            city:
+              item.city_code && item.city_name
+                ? { city_code: item.city_code, city_name: item.city_name }
+                : undefined,
+            barangay:
+              item.barangay_code && item.barangay
+                ? { brgy_code: item.barangay_code, brgy_name: item.barangay }
+                : undefined
+          },
+          position: item.position,
+          department: item.department,
+          employeeId: item.employee_id,
+          isActive: item.is_active,
+          joinDate: item.join_date,
+          profilePicture: item.profile_picture,
+          idPhoto: item.id_photo,
+          notes: item.notes,
+          emergencyContactName: item.emergency_contact_name,
+          emergencyContactPhone: item.emergency_contact_phone,
+          emergencyContactRelationship: item.emergency_contact_relationship,
+          trainingCertifications: item.training_certifications || [],
+          lastTrainingDate: item.last_training_date,
+          nextTrainingDate: item.next_training_date,
+          attendanceRate: item.attendance_rate,
+          totalMeetingsAttended: item.total_meetings_attended,
+          totalMeetingsConducted: item.total_meetings_conducted,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          created_by: item.created_by,
+          updated_by: item.updated_by
         };
       });
+
+      return members;
     } catch (error) {
       console.error('Error fetching basca members by position:', error);
+      throw error;
+    }
+  }
+
+  static async getCurrentUserBascaMember(
+    userId: string
+  ): Promise<BascaMember | null> {
+    try {
+      // First get the user data from users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .eq('role', 'basca')
+        .single();
+
+      if (userError) {
+        if (userError.code === 'PGRST116') {
+          // No rows returned
+          return null;
+        }
+        throw new Error(`Failed to fetch user data: ${userError.message}`);
+      }
+
+      if (!userData) {
+        return null;
+      }
+
+      console.log('DExxxxdsdsdsds');
+      // Then get the basca member data from basca_members table
+      const { data: bascaData, error: bascaError } = await supabase
+        .from('basca_members')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .single();
+
+      if (bascaError) {
+        if (bascaError.code === 'PGRST116') {
+          // No basca member record found, but user exists
+          return null;
+        }
+        throw new Error(
+          `Failed to fetch basca member data: ${bascaError.message}`
+        );
+      }
+
+      if (!bascaData) {
+        return null;
+      }
+
+      const member: BascaMember = {
+        id: bascaData.id,
+        userId: bascaData.user_id,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        email: userData.email,
+        phone: userData.phone,
+        barangay: userData.barangay,
+        barangayCode: userData.barangay_code,
+        address: bascaData.address,
+        addressData: {
+          region: bascaData.region_code
+            ? {
+                region_code: bascaData.region_code,
+                region_name: bascaData.region_name
+              }
+            : undefined,
+          province: bascaData.province_code
+            ? {
+                province_code: bascaData.province_code,
+                province_name: bascaData.province_name
+              }
+            : undefined,
+          city: bascaData.city_code
+            ? {
+                city_code: bascaData.city_code,
+                city_name: bascaData.city_name
+              }
+            : undefined,
+          barangay: bascaData.barangay_code
+            ? {
+                brgy_code: bascaData.barangay_code,
+                brgy_name: bascaData.barangay
+              }
+            : undefined
+        },
+        position: bascaData.position,
+        department: bascaData.department,
+        employeeId: bascaData.employee_id,
+        isActive: bascaData.is_active,
+        joinDate: bascaData.join_date,
+        profilePicture: bascaData.profile_picture,
+        idPhoto: bascaData.id_photo,
+        notes: bascaData.notes,
+        emergencyContactName: bascaData.emergency_contact_name,
+        emergencyContactPhone: bascaData.emergency_contact_phone,
+        emergencyContactRelationship: bascaData.emergency_contact_relationship,
+        trainingCertifications: bascaData.training_certifications || [],
+        lastTrainingDate: bascaData.last_training_date,
+        nextTrainingDate: bascaData.next_training_date,
+        attendanceRate: bascaData.attendance_rate,
+        totalMeetingsAttended: bascaData.total_meetings_attended,
+        totalMeetingsConducted: bascaData.total_meetings_conducted,
+        created_at: bascaData.created_at,
+        updated_at: bascaData.updated_at,
+        created_by: bascaData.created_by,
+        updated_by: bascaData.updated_by
+      };
+      console.log({ member });
+      return member;
+    } catch (error) {
+      console.error('Error fetching current user basca member:', error);
       throw error;
     }
   }

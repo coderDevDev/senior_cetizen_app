@@ -55,6 +55,15 @@ export function PhilippineAddressSelector({
   showLabels = false,
   required = false
 }: PhilippineAddressSelectorProps) {
+  // Safety check for onChange
+  if (typeof onChange !== 'function') {
+    console.error('PhilippineAddressSelector: onChange must be a function');
+    return null;
+  }
+
+  // Ensure value is always an object
+  const safeValue = value || {};
+
   const [regionsList, setRegionsList] = useState<any[]>([]);
   const [provincesList, setProvincesList] = useState<any[]>([]);
   const [citiesList, setCitiesList] = useState<any[]>([]);
@@ -74,33 +83,33 @@ export function PhilippineAddressSelector({
 
   // Load provinces when region changes
   useEffect(() => {
-    if (value?.region?.region_code) {
-      loadProvinces(value.region.region_code);
+    if (safeValue?.region?.region_code) {
+      loadProvinces(safeValue.region.region_code);
     } else {
       setProvincesList([]);
       setCitiesList([]);
       setBarangaysList([]);
     }
-  }, [value?.region?.region_code]);
+  }, [safeValue?.region?.region_code]);
 
   // Load cities when province changes
   useEffect(() => {
-    if (value?.province?.province_code) {
-      loadCities(value.province.province_code);
+    if (safeValue?.province?.province_code) {
+      loadCities(safeValue.province.province_code);
     } else {
       setCitiesList([]);
       setBarangaysList([]);
     }
-  }, [value?.province?.province_code]);
+  }, [safeValue?.province?.province_code]);
 
   // Load barangays when city changes
   useEffect(() => {
-    if (value?.city?.city_code) {
-      loadBarangays(value.city.city_code);
+    if (safeValue?.city?.city_code) {
+      loadBarangays(safeValue.city.city_code);
     } else {
       setBarangaysList([]);
     }
-  }, [value?.city?.city_code]);
+  }, [safeValue?.city?.city_code]);
 
   const loadRegions = async () => {
     setLoadingRegions(true);
@@ -173,7 +182,7 @@ export function PhilippineAddressSelector({
       p => p.province_code === provinceCode
     );
     onChange({
-      ...value,
+      ...safeValue,
       province: selectedProvince,
       city: undefined,
       barangay: undefined
@@ -183,7 +192,7 @@ export function PhilippineAddressSelector({
   const handleCityChange = (cityCode: string) => {
     const selectedCity = citiesList.find(c => c.city_code === cityCode);
     onChange({
-      ...value,
+      ...safeValue,
       city: selectedCity,
       barangay: undefined
     });
@@ -194,7 +203,7 @@ export function PhilippineAddressSelector({
       b => b.brgy_code === barangayCode
     );
     onChange({
-      ...value,
+      ...safeValue,
       barangay: selectedBarangay
     });
   };
@@ -202,25 +211,28 @@ export function PhilippineAddressSelector({
   const getDisplayValue = (
     type: 'region' | 'province' | 'city' | 'barangay'
   ) => {
-    const data = value?.[type];
+    const data = safeValue?.[type];
     if (!data) return '';
 
     switch (type) {
       case 'region':
-        return data.region_name;
+        return 'region_name' in data ? data.region_name : '';
       case 'province':
-        return data.province_name;
+        return 'province_name' in data ? data.province_name : '';
       case 'city':
-        return data.city_name;
+        return 'city_name' in data ? data.city_name : '';
       case 'barangay':
-        return data.brgy_name;
+        return 'brgy_name' in data ? data.brgy_name : '';
       default:
         return '';
     }
   };
 
   const isComplete =
-    value?.region && value?.province && value?.city && value?.barangay;
+    safeValue?.region &&
+    safeValue?.province &&
+    safeValue?.city &&
+    safeValue?.barangay;
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -242,7 +254,7 @@ export function PhilippineAddressSelector({
               {required && <span className="text-red-500">*</span>}
             </Label>
             <Select
-              value={value?.region?.region_code || ''}
+              value={safeValue?.region?.region_code || ''}
               onValueChange={handleRegionChange}
               disabled={disabled || loadingRegions}>
               <SelectTrigger className="w-full">
@@ -278,13 +290,13 @@ export function PhilippineAddressSelector({
               {required && <span className="text-red-500">*</span>}
             </Label>
             <Select
-              value={value?.province?.province_code || ''}
+              value={safeValue?.province?.province_code || ''}
               onValueChange={handleProvinceChange}
-              disabled={disabled || loadingProvinces || !value?.region}>
+              disabled={disabled || loadingProvinces || !safeValue?.region}>
               <SelectTrigger className="w-full">
                 <SelectValue
                   placeholder={
-                    !value?.region
+                    !safeValue?.region
                       ? 'Select region first'
                       : loadingProvinces
                       ? 'Loading provinces...'
@@ -318,13 +330,13 @@ export function PhilippineAddressSelector({
               {required && <span className="text-red-500">*</span>}
             </Label>
             <Select
-              value={value?.city?.city_code || ''}
+              value={safeValue?.city?.city_code || ''}
               onValueChange={handleCityChange}
-              disabled={disabled || loadingCities || !value?.province}>
+              disabled={disabled || loadingCities || !safeValue?.province}>
               <SelectTrigger className="w-full">
                 <SelectValue
                   placeholder={
-                    !value?.province
+                    !safeValue?.province
                       ? 'Select province first'
                       : loadingCities
                       ? 'Loading cities...'
@@ -356,13 +368,13 @@ export function PhilippineAddressSelector({
               {required && <span className="text-red-500">*</span>}
             </Label>
             <Select
-              value={value?.barangay?.brgy_code || ''}
+              value={safeValue?.barangay?.brgy_code || ''}
               onValueChange={handleBarangayChange}
-              disabled={disabled || loadingBarangays || !value?.city}>
+              disabled={disabled || loadingBarangays || !safeValue?.city}>
               <SelectTrigger className="w-full">
                 <SelectValue
                   placeholder={
-                    !value?.city
+                    !safeValue?.city
                       ? 'Select city first'
                       : loadingBarangays
                       ? 'Loading barangays...'
