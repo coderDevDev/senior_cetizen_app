@@ -12,13 +12,17 @@ emergency updates relevant to senior citizens.
 and auto-sync functionality to support fieldwork and minimize
 connectivity issues, ensuring that data is saved locally 
 and automatically synchronized once the device regains internet access.
+
+
 3. To integrate a real-time SMS notification system that 
 sends automatic alerts to registered senior citizens 
 and/or their family members for announcements, benefit schedules, 
 emergency notices, and other important updates.
+
+
 4. To develop a senior citizen self-service module,
  accessible via the mobile application, that allows senior
-  citizens to log in securely, view their personal records and credentials, request official documents offered by OSCA/BASCA (e.g., IDs, certifications), schedule appointments with Barangay Health Workers (BHW), and request medical assistance or apply for available benefits.
+BASC  citizens to log in securely, view their personal records and credentials, request official documents offered by OSCA/A (e.g., IDs, certifications), schedule appointments with Barangay Health Workers (BHW), and request medical assistance or apply for available benefits.
 5. To ensure that senior citizens or their families can also
  access a web-based portal to check status updates,
   view announcements, and request corrections or modifications

@@ -36,12 +36,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { BascaMembersAPI } from '@/lib/api/basca-members';
 import React, { useRef } from 'react';
+import type { SeniorCitizen } from '@/types/property';
+import { getOfflineDB } from '@/lib/db/offline-db';
 
 const beneficiarySchema = z.object({
   name: z.string().min(2, 'Beneficiary name must be at least 2 characters'),
@@ -151,7 +154,8 @@ const addSeniorSchema = z.object({
     'other'
   ]),
   beneficiaries: z.array(beneficiarySchema).default([]),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  email: z.string().email('Please enter a valid email address')
 });
 
 type AddSeniorFormData = z.infer<typeof addSeniorSchema>;
@@ -160,6 +164,8 @@ interface AddSeniorMobileProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  mode?: 'create' | 'edit';
+  initialData?: any; // Accept API-shaped senior with possible snake_case and joined users
 }
 
 const steps = [
@@ -211,13 +217,22 @@ const steps = [
     description: 'Family members and dependents',
     icon: Users,
     isRequired: false
+  },
+  {
+    id: 'credentials',
+    title: 'Login Credentials',
+    description: 'Email and password setup',
+    icon: User,
+    isRequired: true
   }
 ];
 
 export function AddSeniorMobile({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  mode = 'create',
+  initialData
 }: AddSeniorMobileProps) {
   const { authState } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
@@ -231,6 +246,7 @@ export function AddSeniorMobile({
   const [profilePicture, setProfilePicture] = useState<string>('');
   const [calculatedAge, setCalculatedAge] = useState<number | null>(null);
   const [isScrollable, setIsScrollable] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState<string>('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<AddSeniorFormData>({
@@ -244,7 +260,8 @@ export function AddSeniorMobile({
       monthlyIncome: 0,
       monthlyPension: 0,
       livingCondition: 'independent',
-      beneficiaries: []
+      beneficiaries: [],
+      email: ''
     }
   });
 
@@ -273,6 +290,87 @@ export function AddSeniorMobile({
 
   useEffect(() => {
     if (isOpen) {
+      // If editing, prefill values from initialData
+      if (mode === 'edit' && initialData) {
+        const s: any = initialData;
+        const firstName =
+          s.firstName ?? s.first_name ?? s.users?.first_name ?? '';
+        const lastName = s.lastName ?? s.last_name ?? s.users?.last_name ?? '';
+        const email = s.email ?? s.users?.email ?? '';
+        const phone = s.phone ?? s.users?.phone ?? s.contact_phone ?? '';
+        const barangay = s.barangay ?? '';
+        const barangayCode = s.barangayCode ?? s.barangay_code ?? '';
+        const address = s.address ?? '';
+        const dateOfBirth = s.dateOfBirth ?? s.date_of_birth ?? '';
+        const gender = s.gender ?? 'other';
+        const emergencyContactName =
+          s.emergencyContactName ?? s.emergency_contact_name ?? '';
+        const emergencyContactPhone =
+          s.emergencyContactPhone ?? s.emergency_contact_phone ?? '';
+        const emergencyContactRelationship =
+          s.emergencyContactRelationship ??
+          s.emergency_contact_relationship ??
+          '';
+        const medicalConds = s.medicalConditions ?? s.medical_conditions ?? [];
+        const meds = s.medications ?? s.medications ?? [];
+        const housingCondition =
+          s.housingCondition ?? s.housing_condition ?? 'owned';
+        const physicalHealthCondition =
+          s.physicalHealthCondition ?? s.physical_health_condition ?? 'good';
+        const monthlyIncome = s.monthlyIncome ?? s.monthly_income ?? 0;
+        const monthlyPension = s.monthlyPension ?? s.monthly_pension ?? 0;
+        const livingCondition =
+          s.livingCondition ?? s.living_condition ?? 'independent';
+        const seniorIdPhoto = s.seniorIdPhoto ?? s.senior_id_photo ?? '';
+        const profilePic = s.profilePicture ?? s.profile_picture ?? '';
+        const notes = s.notes ?? '';
+
+        setMedicalConditions(medicalConds);
+        setMedications(meds);
+        setProfilePicture(profilePic);
+        if (Array.isArray(s.beneficiaries)) {
+          // beneficiaries may come joined in snake_case
+          const mapped = s.beneficiaries.map((b: any) => ({
+            name: b.name,
+            relationship: b.relationship,
+            dateOfBirth: b.dateOfBirth ?? b.date_of_birth ?? '',
+            gender: b.gender ?? 'other',
+            address: b.address ?? '',
+            contactPhone: b.contactPhone ?? b.contact_phone ?? '',
+            occupation: b.occupation ?? '',
+            monthlyIncome: b.monthlyIncome ?? b.monthly_income ?? 0,
+            isDependent: b.isDependent ?? b.is_dependent ?? false
+          }));
+          setBeneficiaries(mapped);
+        }
+
+        form.reset({
+          firstName,
+          lastName,
+          email,
+          contactPhone: phone,
+          barangay,
+          barangayCode,
+          address,
+          dateOfBirth,
+          gender,
+          emergencyContactName,
+          emergencyContactPhone,
+          emergencyContactRelationship,
+          medicalConditions: medicalConds,
+          medications: meds,
+          housingCondition,
+          physicalHealthCondition,
+          monthlyIncome,
+          monthlyPension,
+          livingCondition,
+          seniorIdPhoto,
+          profilePicture: profilePic,
+          beneficiaries,
+          notes
+        } as any);
+      }
+
       // Pre-fill barangay from logged-in user
       if (authState.user?.barangay) {
         form.setValue('barangay', authState.user.barangay);
@@ -371,6 +469,8 @@ export function AddSeniorMobile({
         ]);
       case 6: // Beneficiaries
         return true; // Optional step
+      case 7: // Login Credentials
+        return await form.trigger(['email']);
       default:
         return true;
     }
@@ -397,107 +497,253 @@ export function AddSeniorMobile({
 
   const canProceed = (): boolean => {
     const formValues = form.watch();
+    console.log('canProceed called for step:', currentStep);
+    console.log('Form values:', formValues);
+
     switch (currentStep) {
       case 0: // Personal Information
-        return !!(
+        const personalValid = !!(
           formValues.firstName &&
           formValues.lastName &&
           formValues.dateOfBirth &&
           formValues.gender
         );
+        console.log('Personal step valid:', personalValid);
+        return personalValid;
       case 1: // Address Information
         // Only check for 'address' as barangay is now derived/pre-filled
-        return !!(
+        const addressValid = !!(
           formValues.address &&
           addressData.region &&
           addressData.province &&
           addressData.city &&
           addressData.barangay
         );
+        console.log('Address step valid:', addressValid);
+        return addressValid;
       case 2: // Contact Information
+        console.log('Contact step - optional, returning true');
         return true; // Optional
       case 3: // Emergency Contact
-        return !!(
+        const emergencyValid = !!(
           formValues.emergencyContactName &&
           formValues.emergencyContactPhone &&
           formValues.emergencyContactRelationship
         );
+        console.log('Emergency step valid:', emergencyValid);
+        return emergencyValid;
       case 4: // Medical Information
+        console.log('Medical step - optional, returning true');
         return true; // Optional
       case 5: // Living Conditions
-        return !!(
+        const livingValid = !!(
           formValues.housingCondition &&
           formValues.physicalHealthCondition &&
           formValues.monthlyIncome !== undefined &&
           formValues.monthlyPension !== undefined &&
           formValues.livingCondition
         );
+        console.log('Living step valid:', livingValid);
+        return livingValid;
       case 6: // Beneficiaries
+        console.log('Beneficiaries step - optional, returning true');
         return true; // Optional
+
+      case 7: // Login Credentials
+        const credentialsValid = !!formValues.email;
+        console.log('Credentials step valid:', credentialsValid);
+        return credentialsValid;
+
       default:
+        console.log('Default case, returning true');
         return true;
     }
   };
 
   const onSubmit = async (data: AddSeniorFormData) => {
+    console.log('onSubmit called with data:', data);
+    console.log('Form is valid:', form.formState.isValid);
+    console.log('Form errors:', form.formState.errors);
+    console.log('Current step:', currentStep);
+    console.log('Can proceed:', canProceed());
+
     setIsLoading(true);
 
     try {
       // Import the API
       const { SeniorCitizensAPI } = await import('@/lib/api/senior-citizens');
+      const isOnline =
+        typeof navigator !== 'undefined' ? navigator.onLine : true;
 
-      // Prepare the data for the API
-      const apiData = {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        dateOfBirth: data.dateOfBirth,
-        gender: data.gender,
-        barangay: data.barangay,
-        barangayCode: data.barangayCode,
-        address: data.address,
-        addressData,
-        contactPerson: data.contactPerson,
-        contactPhone: data.contactPhone,
-        contactRelationship: data.contactRelationship,
-        emergencyContactName: data.emergencyContactName,
-        emergencyContactPhone: data.emergencyContactPhone,
-        emergencyContactRelationship: data.emergencyContactRelationship,
-        medicalConditions,
-        medications,
-        notes: data.notes,
-        housingCondition: data.housingCondition,
-        physicalHealthCondition: data.physicalHealthCondition,
-        monthlyIncome: data.monthlyIncome,
-        monthlyPension: data.monthlyPension,
-        livingCondition: data.livingCondition,
-        profilePicture,
-        seniorIdPhoto: data.seniorIdPhoto,
-        beneficiaries
-      };
+      if (mode === 'edit' && initialData?.id) {
+        // Prepare update payload
+        const updateData = {
+          id: initialData.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          barangay: data.barangay,
+          barangayCode: data.barangayCode,
+          address: data.address,
+          addressData,
+          contactPerson: data.contactPerson,
+          contactPhone: data.contactPhone,
+          contactRelationship: data.contactRelationship,
+          emergencyContactName: data.emergencyContactName,
+          emergencyContactPhone: data.emergencyContactPhone,
+          emergencyContactRelationship: data.emergencyContactRelationship,
+          medicalConditions,
+          medications,
+          notes: data.notes,
+          housingCondition: data.housingCondition,
+          physicalHealthCondition: data.physicalHealthCondition,
+          monthlyIncome: data.monthlyIncome,
+          monthlyPension: data.monthlyPension,
+          livingCondition: data.livingCondition,
+          profilePicture,
+          seniorIdPhoto: data.seniorIdPhoto,
+          beneficiaries,
+          updatedAt: new Date().toISOString()
+        } as any;
 
-      console.log('Adding senior citizen:', apiData);
+        if (!isOnline) {
+          const db = await getOfflineDB();
+          await db.updateSenior(updateData);
+          toast.success('Changes saved offline. They will sync when online.');
+        } else {
+          console.log('Updating senior citizen:', updateData);
+          const result = await SeniorCitizensAPI.updateSeniorCitizen(
+            updateData as any
+          );
 
-      const result = await SeniorCitizensAPI.createSeniorCitizen(apiData);
-
-      if (result.success) {
-        console.log('Senior citizen created successfully:', result.data);
-
-        // Reset form and close modal
-        form.reset();
-        setMedicalConditions([]);
-        setMedications([]);
-        setBeneficiaries([]);
-        setAddressData({});
-        setProfilePicture('');
-        setNewCondition('');
-        setNewMedication('');
-        setCurrentStep(0);
-        onSuccess();
-        onClose();
+          if (result.success) {
+            toast.success('Senior citizen updated successfully');
+          } else {
+            toast.error(result.message || 'Failed to update senior citizen');
+          }
+        }
       } else {
-        console.error('Failed to create senior citizen:', result.message);
-        toast.error(result.message || 'Failed to create senior citizen');
+        // Ensure a password exists; if not, generate a simple one
+        const passwordToUse =
+          generatedPassword ||
+          (() => {
+            const words = [
+              'happy',
+              'sunny',
+              'peace',
+              'love',
+              'hope',
+              'joy',
+              'life',
+              'good',
+              'nice',
+              'warm'
+            ];
+            const numbers = ['123', '456', '789', '2024', '2025'];
+            return `${words[Math.floor(Math.random() * words.length)]}${
+              numbers[Math.floor(Math.random() * numbers.length)]
+            }`;
+          })();
+
+        if (!isOnline) {
+          // Save to offline DB and queue for sync
+          const db = await getOfflineDB();
+          const localId =
+            (globalThis as any).crypto?.randomUUID?.() ||
+            `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const offlineSenior = {
+            id: localId,
+            email: data.email,
+            password: passwordToUse,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            barangay: data.barangay,
+            barangayCode: data.barangayCode,
+            address: data.address,
+            addressData,
+            contactPerson: data.contactPerson,
+            contactPhone: data.contactPhone,
+            contactRelationship: data.contactRelationship,
+            emergencyContactName: data.emergencyContactName,
+            emergencyContactPhone: data.emergencyContactPhone,
+            emergencyContactRelationship: data.emergencyContactRelationship,
+            medicalConditions,
+            medications,
+            notes: data.notes,
+            housingCondition: data.housingCondition,
+            physicalHealthCondition: data.physicalHealthCondition,
+            monthlyIncome: data.monthlyIncome,
+            monthlyPension: data.monthlyPension,
+            livingCondition: data.livingCondition,
+            profilePicture,
+            seniorIdPhoto: data.seniorIdPhoto,
+            beneficiaries,
+            status: 'active',
+            registrationDate: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          } as any;
+          await db.saveSenior(offlineSenior);
+          toast.success('Saved offline. Will sync when back online.');
+        } else {
+          // Prepare the data for the API (create)
+          const apiData = {
+            email: data.email,
+            password: passwordToUse,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dateOfBirth: data.dateOfBirth,
+            gender: data.gender,
+            barangay: data.barangay,
+            barangayCode: data.barangayCode,
+            address: data.address,
+            addressData,
+            contactPerson: data.contactPerson,
+            contactPhone: data.contactPhone,
+            contactRelationship: data.contactRelationship,
+            emergencyContactName: data.emergencyContactName,
+            emergencyContactPhone: data.emergencyContactPhone,
+            emergencyContactRelationship: data.emergencyContactRelationship,
+            medicalConditions,
+            medications,
+            notes: data.notes,
+            housingCondition: data.housingCondition,
+            physicalHealthCondition: data.physicalHealthCondition,
+            monthlyIncome: data.monthlyIncome,
+            monthlyPension: data.monthlyPension,
+            livingCondition: data.livingCondition,
+            profilePicture,
+            seniorIdPhoto: data.seniorIdPhoto,
+            beneficiaries
+          };
+
+          console.log('Adding senior citizen:', apiData);
+          const result = await SeniorCitizensAPI.createSeniorCitizen(apiData);
+
+          if (result.success) {
+            console.log('Senior citizen created successfully:', result.data);
+          } else {
+            console.error('Failed to create senior citizen:', result.message);
+            toast.error(result.message || 'Failed to create senior citizen');
+          }
+        }
       }
+
+      // Reset form and close modal
+      form.reset();
+      setMedicalConditions([]);
+      setMedications([]);
+      setBeneficiaries([]);
+      setAddressData({});
+      setProfilePicture('');
+      setNewCondition('');
+      setNewMedication('');
+      setCurrentStep(0);
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error('Error creating senior citizen:', error);
       toast.error('Failed to create senior citizen. Please try again.');
@@ -1340,23 +1586,385 @@ export function AddSeniorMobile({
 
       case 6: // Beneficiaries
         return (
+          <div className="space-y-6">
+            {/* Beneficiaries Section */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-1.5 h-6 bg-gradient-to-b from-[#00af8f] to-[#00af90] rounded-full"></div>
+                <h4 className="text-lg font-semibold text-gray-900">
+                  Family Members & Dependents
+                </h4>
+                <Badge variant="secondary" className="ml-auto text-xs">
+                  Optional
+                </Badge>
+              </div>
+
+              {beneficiaries.length === 0 ? (
+                <div className="text-center py-8 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-200">
+                  <Users className="w-16 h-16 text-[#00af8f] mx-auto mb-4 opacity-50" />
+                  <h4 className="font-medium text-[#333333] mb-2">
+                    No Beneficiaries Added
+                  </h4>
+                  <p className="text-[#666666] text-sm mb-4">
+                    Add family members or dependents if needed
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setBeneficiaries([
+                        ...beneficiaries,
+                        {
+                          name: '',
+                          relationship: '',
+                          dateOfBirth: '',
+                          gender: 'other',
+                          address: '',
+                          contactPhone: '',
+                          occupation: '',
+                          monthlyIncome: 0,
+                          isDependent: false
+                        }
+                      ]);
+                    }}
+                    className="border-[#00af8f] text-[#00af8f] hover:bg-[#00af8f]/5 rounded-xl">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Beneficiary
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {beneficiaries.map((beneficiary, index) => (
+                    <div
+                      key={index}
+                      className="bg-gradient-to-br from-gray-50 to-white p-4 border-2 border-gray-200 rounded-2xl space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-semibold text-gray-900">
+                          Beneficiary {index + 1}
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newBeneficiaries = beneficiaries.filter(
+                              (_, i) => i !== index
+                            );
+                            setBeneficiaries(newBeneficiaries);
+                          }}
+                          className="text-red-500 hover:text-red-700 border-red-200 hover:border-red-300 rounded-xl">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Name *
+                          </Label>
+                          <Input
+                            placeholder="Enter beneficiary name"
+                            value={beneficiary.name || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].name = e.target.value;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Relationship *
+                          </Label>
+                          <Input
+                            placeholder="e.g., Son, Daughter, Grandchild"
+                            value={beneficiary.relationship || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].relationship =
+                                e.target.value;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Date of Birth *
+                          </Label>
+                          <Input
+                            type="date"
+                            value={beneficiary.dateOfBirth || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].dateOfBirth =
+                                e.target.value;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Gender *
+                          </Label>
+                          <Select
+                            value={beneficiary.gender || 'other'}
+                            onValueChange={value => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].gender = value as
+                                | 'male'
+                                | 'female'
+                                | 'other';
+                              setBeneficiaries(newBeneficiaries);
+                            }}>
+                            <SelectTrigger className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white">
+                              <SelectValue placeholder="Select gender" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border-2 border-gray-200 shadow-lg">
+                              <SelectItem
+                                value="male"
+                                className="rounded-lg hover:bg-[#00af8f]/5">
+                                Male
+                              </SelectItem>
+                              <SelectItem
+                                value="female"
+                                className="rounded-lg hover:bg-[#00af8f]/5">
+                                Female
+                              </SelectItem>
+                              <SelectItem
+                                value="other"
+                                className="rounded-lg hover:bg-[#00af8f]/5">
+                                Other
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Address
+                          </Label>
+                          <Input
+                            placeholder="Enter address"
+                            value={beneficiary.address || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].address = e.target.value;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Contact Phone
+                          </Label>
+                          <Input
+                            placeholder="Enter contact phone"
+                            value={beneficiary.contactPhone || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].contactPhone =
+                                e.target.value;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Occupation
+                          </Label>
+                          <Input
+                            placeholder="Enter occupation"
+                            value={beneficiary.occupation || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].occupation =
+                                e.target.value;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-semibold text-gray-700">
+                            Monthly Income (₱)
+                          </Label>
+                          <Input
+                            type="number"
+                            placeholder="Enter monthly income"
+                            value={beneficiary.monthlyIncome || ''}
+                            onChange={e => {
+                              const newBeneficiaries = [...beneficiaries];
+                              newBeneficiaries[index].monthlyIncome =
+                                parseFloat(e.target.value) || 0;
+                              setBeneficiaries(newBeneficiaries);
+                            }}
+                            className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-3 pt-2">
+                        <input
+                          type="checkbox"
+                          id={`dependent-${index}`}
+                          checked={beneficiary.isDependent || false}
+                          onChange={e => {
+                            const newBeneficiaries = [...beneficiaries];
+                            newBeneficiaries[index].isDependent =
+                              e.target.checked;
+                            setBeneficiaries(newBeneficiaries);
+                          }}
+                          className="w-4 h-4 text-[#00af8f] border-gray-300 rounded focus:ring-[#00af8f] focus:ring-2"
+                        />
+                        <Label
+                          htmlFor={`dependent-${index}`}
+                          className="text-sm font-medium text-gray-700">
+                          Is Dependent
+                        </Label>
+                      </div>
+                    </div>
+                  ))}
+
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setBeneficiaries([
+                        ...beneficiaries,
+                        {
+                          name: '',
+                          relationship: '',
+                          dateOfBirth: '',
+                          gender: 'other',
+                          address: '',
+                          contactPhone: '',
+                          occupation: '',
+                          monthlyIncome: 0,
+                          isDependent: false
+                        }
+                      ]);
+                    }}
+                    className="w-full h-14 bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-medium">
+                    <Plus className="w-5 h-5 mr-2" />
+                    Add Another Beneficiary
+                  </Button>
+                </div>
+              )}
+
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <p className="text-sm text-blue-800 text-center">
+                  💡 <strong>Tip:</strong> Beneficiaries are family members or
+                  dependents who may be eligible for benefits or assistance
+                  programs.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 7: // Login Credentials
+        return (
           <div className="space-y-4">
-            <div className="text-center py-8">
-              <Users className="w-16 h-16 text-[#00af8f] mx-auto mb-4 opacity-50" />
-              <h4 className="font-medium text-[#333333] mb-2">Beneficiaries</h4>
-              <p className="text-[#666666] text-sm mb-4">
-                Add family members or dependents if needed
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  // TODO: Implement beneficiary form
-                  toast.info('Beneficiary form coming soon!');
-                }}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Beneficiary
-              </Button>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-1.5 h-6 bg-gradient-to-b from-[#00af8f] to-[#00af90] rounded-full"></div>
+                <h4 className="text-lg font-semibold text-gray-900">
+                  Login Credentials
+                </h4>
+              </div>
+
+              <div className="space-y-2">
+                <Label
+                  htmlFor="email"
+                  className="text-sm font-semibold text-gray-700">
+                  Email Address *
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...form.register('email')}
+                  placeholder="Enter email address"
+                  className="h-12 text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-4 focus:ring-[#00af8f]/10 rounded-xl transition-all duration-200 bg-gray-50 focus:bg-white"
+                />
+                {form.formState.errors.email && (
+                  <p className="text-red-500 text-xs flex items-center mt-1">
+                    <span className="w-1 h-1 bg-red-500 rounded-full mr-2"></span>
+                    {form.formState.errors.email.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Generated Password
+                </Label>
+                <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className="text-sm text-blue-800 font-medium mb-1">
+                        Password for{' '}
+                        {form.watch('firstName') || 'Senior Citizen'}:
+                      </p>
+                      <p className="text-2xl font-bold text-blue-900 font-mono tracking-wider">
+                        {generatedPassword}
+                      </p>
+                    </div>
+                    <div className="ml-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const words = [
+                            'happy',
+                            'sunny',
+                            'peace',
+                            'love',
+                            'hope',
+                            'joy',
+                            'life',
+                            'good',
+                            'nice',
+                            'warm'
+                          ];
+                          const numbers = ['123', '456', '789', '2024', '2025'];
+                          const randomWord =
+                            words[Math.floor(Math.random() * words.length)];
+                          const randomNumber =
+                            numbers[Math.floor(Math.random() * numbers.length)];
+                          const newPassword = `${randomWord}${randomNumber}`;
+                          setGeneratedPassword(newPassword);
+                        }}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-50">
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Regenerate
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">
+                    💡 This is a simple, memorable password that the senior
+                    citizen can easily remember.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <p className="text-sm text-amber-800">
+                  <strong>Important:</strong> Please save these login
+                  credentials. The senior citizen will need them to access their
+                  account.
+                </p>
+              </div>
             </div>
           </div>
         );
@@ -1422,6 +2030,8 @@ export function AddSeniorMobile({
 
             {/* Form Content */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              {/* Debug Info */}
+
               {renderStepContent()}
             </div>
           </form>
@@ -1464,7 +2074,15 @@ export function AddSeniorMobile({
               </Button>
             ) : (
               <Button
-                type="submit"
+                type="button"
+                onClick={() => {
+                  // console.log('Submit button clicked!');
+                  // console.log('Can proceed:', canProceed());
+                  // console.log('Is loading:', isLoading);
+                  // console.log('Current step:', currentStep);
+                  // console.log('Form values:', form.watch());
+                  form.handleSubmit(onSubmit)();
+                }}
                 disabled={!canProceed() || isLoading}
                 className="flex-1 h-14 bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                 {isLoading ? (

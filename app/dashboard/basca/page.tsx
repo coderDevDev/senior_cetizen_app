@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
@@ -37,7 +38,10 @@ import {
   Mail,
   Clock,
   Database,
-  RefreshCw
+  RefreshCw,
+  LayoutGrid,
+  Table as TableIcon,
+  Eye
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -47,17 +51,24 @@ import {
   ViewBascaMemberModal,
   DeleteBascaMemberDialog
 } from '@/components/basca';
-import { AddSeniorMobile } from '@/components/seniors';
+import { AddSeniorMobile, ViewSeniorModal } from '@/components/seniors';
 import { useAuth } from '@/hooks/useAuth';
 import { BascaMembersAPI } from '@/lib/api/basca-members';
+import { SeniorCitizensAPI } from '@/lib/api/senior-citizens';
 import { useToast } from '@/hooks/use-toast';
 import type { BascaMember } from '@/types/basca';
+import type { SeniorCitizen } from '@/types/property';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MiniPWAStatus } from '@/components/ui/pwa-status';
+import { getOfflineDB } from '@/lib/db/offline-db';
+import { usePWA } from '@/hooks/usePWA';
 
 export default function BASCADashboard() {
   const { toast } = useToast();
+  const { isOnline, offlineQueue, syncInProgress, syncOfflineData } = usePWA();
   const { authState } = useAuth();
   const [bascaMembers, setBascaMembers] = useState<BascaMember[]>([]);
+  const [seniorCitizens, setSeniorCitizens] = useState<SeniorCitizen[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -75,14 +86,145 @@ export default function BASCADashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [selectedSenior, setSelectedSenior] = useState<any | null>(null);
+  const [isViewSeniorOpen, setIsViewSeniorOpen] = useState(false);
+  const [isEditSeniorOpen, setIsEditSeniorOpen] = useState(false);
+  const [offlineSeniors, setOfflineSeniors] = useState<any[]>([]);
+  const [isLoadingOffline, setIsLoadingOffline] = useState(false);
+
+  // Field resolvers to support both camelCase (app model) and snake_case (DB),
+  // plus joined `users` fields from the API.
+  const getFirstName = (s: any) =>
+    s?.firstName ?? s?.first_name ?? s?.users?.first_name ?? '';
+  const getLastName = (s: any) =>
+    s?.lastName ?? s?.last_name ?? s?.users?.last_name ?? '';
+  const getFullName = (s: any) => `${getFirstName(s)} ${getLastName(s)}`.trim();
+  const getEmail = (s: any) => s?.email ?? s?.users?.email ?? '';
+  const getPhone = (s: any) =>
+    s?.phone ?? s?.users?.phone ?? s?.contactPhone ?? '';
+  const getGender = (s: any) => s?.gender ?? '';
+  const getDOB = (s: any) => s?.dateOfBirth ?? s?.date_of_birth ?? '';
+  const getBarangay = (s: any) => s?.barangay ?? '';
+  const getAddress = (s: any) => s?.address ?? '';
+  const getRegistrationDate = (s: any) =>
+    s?.registrationDate ?? s?.registration_date ?? s?.created_at ?? '';
+  const getOSCAId = (s: any) => s?.oscaId ?? s?.osca_id ?? '';
+  const getMonthlyIncome = (s: any) =>
+    s?.monthlyIncome ?? s?.monthly_income ?? '';
+  const getMonthlyPension = (s: any) =>
+    s?.monthlyPension ?? s?.monthly_pension ?? '';
+  const getStatus = (s: any) => s?.status ?? 'active';
+  const getProfilePicture = (s: any) =>
+    s?.profilePicture ?? s?.profile_picture ?? '';
+
+  // Normalize a DB record to our SeniorCitizen interface for view modal
+  const mapSeniorRecordToModel = (s: any): SeniorCitizen => ({
+    id: s.id,
+    userId: s.user_id ?? s.userId,
+    firstName: getFirstName(s) || undefined,
+    lastName: getLastName(s) || undefined,
+    email: getEmail(s) || undefined,
+    phone: getPhone(s) || undefined,
+    barangay: getBarangay(s) || '',
+    barangayCode: s.barangayCode ?? s.barangay_code ?? '',
+    dateOfBirth: (getDOB(s) as string) || '',
+    gender: (getGender(s) as any) || 'other',
+    address: getAddress(s) || '',
+    addressData: undefined,
+    contactPerson: s.contactPerson ?? s.contact_person ?? undefined,
+    contactPhone: s.contactPhone ?? s.contact_phone ?? undefined,
+    contactRelationship:
+      s.contactRelationship ?? s.contact_relationship ?? undefined,
+    medicalConditions: s.medicalConditions ?? s.medical_conditions ?? [],
+    medications: s.medications ?? [],
+    emergencyContactName:
+      s.emergencyContactName ?? s.emergency_contact_name ?? undefined,
+    emergencyContactPhone:
+      s.emergencyContactPhone ?? s.emergency_contact_phone ?? undefined,
+    emergencyContactRelationship:
+      s.emergencyContactRelationship ??
+      s.emergency_contact_relationship ??
+      undefined,
+    oscaId: s.oscaId ?? s.osca_id ?? undefined,
+    seniorIdPhoto: s.seniorIdPhoto ?? s.senior_id_photo ?? undefined,
+    profilePicture: getProfilePicture(s) || undefined,
+    documents: s.documents ?? [],
+    status: getStatus(s) as any,
+    registrationDate:
+      (getRegistrationDate(s) as string) || new Date().toISOString(),
+    lastMedicalCheckup: s.lastMedicalCheckup ?? undefined,
+    notes: s.notes ?? undefined,
+    housingCondition: s.housingCondition ?? s.housing_condition ?? 'owned',
+    physicalHealthCondition:
+      s.physicalHealthCondition ?? s.physical_health_condition ?? 'good',
+    monthlyIncome: Number(getMonthlyIncome(s) || 0),
+    monthlyPension: Number(getMonthlyPension(s) || 0),
+    livingCondition: s.livingCondition ?? s.living_condition ?? 'independent',
+    beneficiaries: (s.beneficiaries || []).map((b: any) => ({
+      id: b.id ?? '',
+      seniorCitizenId: b.senior_citizen_id ?? b.seniorCitizenId ?? '',
+      name: b.name,
+      relationship: b.relationship,
+      dateOfBirth: b.dateOfBirth ?? b.date_of_birth ?? '',
+      gender: b.gender,
+      address: b.address,
+      contactPhone: b.contactPhone ?? b.contact_phone,
+      occupation: b.occupation,
+      monthlyIncome: b.monthlyIncome ?? b.monthly_income,
+      isDependent: b.isDependent ?? b.is_dependent,
+      createdAt: b.created_at ?? b.createdAt ?? '',
+      updatedAt: b.updated_at ?? b.updatedAt ?? ''
+    })),
+    createdAt: s.created_at ?? s.createdAt ?? new Date().toISOString(),
+    updatedAt: s.updated_at ?? s.updatedAt ?? new Date().toISOString(),
+    createdBy: s.created_by ?? s.createdBy ?? undefined,
+    updatedBy: s.updated_by ?? s.updatedBy ?? undefined
+  });
+
+  const handleViewSenior = (senior: any) => {
+    setSelectedSenior(senior);
+    setIsViewSeniorOpen(true);
+  };
+
+  const handleEditSenior = (senior: any) => {
+    setSelectedSenior(senior);
+    setIsEditSeniorOpen(true);
+  };
 
   useEffect(() => {
     fetchBascaMembers();
+    fetchSeniorCitizens();
   }, []);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
+
+  useEffect(() => {
+    if (activeTab === 'offline') {
+      loadOfflineSeniors();
+    }
+  }, [activeTab]);
+
+  const loadOfflineSeniors = async () => {
+    try {
+      setIsLoadingOffline(true);
+      const db = await getOfflineDB();
+      const seniors = await db.getSeniors();
+      setOfflineSeniors(seniors);
+    } catch (e) {
+      console.error('Failed to load offline seniors', e);
+    } finally {
+      setIsLoadingOffline(false);
+    }
+  };
 
   const fetchBascaMembers = async () => {
     try {
-      setIsLoading(true);
       const members = await BascaMembersAPI.getAllBascaMembers();
       setBascaMembers(members);
     } catch (error) {
@@ -92,6 +234,25 @@ export default function BASCADashboard() {
         description: 'Failed to fetch basca members',
         variant: 'destructive'
       });
+    }
+  };
+
+  const fetchSeniorCitizens = async () => {
+    try {
+      setIsLoading(true);
+      const result = await SeniorCitizensAPI.getAllSeniorCitizens();
+      if (result.success) {
+        setSeniorCitizens(result.data);
+      } else {
+        throw new Error('Failed to fetch senior citizens');
+      }
+    } catch (error) {
+      console.error('Error fetching senior citizens:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch senior citizens',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -99,7 +260,7 @@ export default function BASCADashboard() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchBascaMembers();
+    await Promise.all([fetchBascaMembers(), fetchSeniorCitizens()]);
     setIsRefreshing(false);
     toast({
       title: 'Success',
@@ -155,19 +316,97 @@ export default function BASCADashboard() {
   };
 
   const calculateStats = () => {
-    const total = bascaMembers.length;
-    const active = bascaMembers.filter(m => m.isActive).length;
+    const total = seniorCitizens.length;
+    const active = seniorCitizens.filter(s => s.status === 'active').length;
     const inactive = total - active;
-    const newThisMonth = bascaMembers.filter(m => {
-      const joinDate = new Date(m.joinDate);
+    const newThisMonth = seniorCitizens.filter(s => {
+      const registrationDate = new Date(s.registrationDate);
       const now = new Date();
       return (
-        joinDate.getMonth() === now.getMonth() &&
-        joinDate.getFullYear() === now.getFullYear()
+        registrationDate.getMonth() === now.getMonth() &&
+        registrationDate.getFullYear() === now.getFullYear()
       );
     }).length;
 
     return { total, active, inactive, newThisMonth };
+  };
+
+  // Utility functions for pagination and export
+  const getFilteredSeniors = () => {
+    return seniorCitizens.filter(senior => {
+      const name = getFullName(senior).toLowerCase();
+      const matchesSearch =
+        searchTerm === '' || name.includes(searchTerm.toLowerCase());
+      const status = getStatus(senior);
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && status === 'active') ||
+        (filterStatus === 'inactive' && status !== 'active');
+      return matchesSearch && matchesStatus;
+    });
+  };
+
+  const getPaginatedSeniors = () => {
+    const filtered = getFilteredSeniors();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  };
+
+  const totalPages = Math.ceil(getFilteredSeniors().length / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const exportToCSV = () => {
+    const filteredSeniors = getFilteredSeniors();
+    const headers = [
+      'Name',
+      'Email',
+      'Phone',
+      'Barangay',
+      'Address',
+      'Gender',
+      'Date of Birth',
+      'Status',
+      'Registration Date',
+      'OSCA ID',
+      'Monthly Income',
+      'Monthly Pension'
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...filteredSeniors.map(senior =>
+        [
+          getFullName(senior),
+          getEmail(senior),
+          getPhone(senior),
+          getBarangay(senior),
+          getAddress(senior),
+          getGender(senior),
+          getDOB(senior),
+          getStatus(senior),
+          getRegistrationDate(senior),
+          getOSCAId(senior),
+          getMonthlyIncome(senior),
+          getMonthlyPension(senior)
+        ].join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `senior_citizens_${new Date().toISOString().split('T')[0]}.csv`
+    );
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const stats = calculateStats();
@@ -429,65 +668,109 @@ export default function BASCADashboard() {
 
   const renderMembers = () => (
     <div className="space-y-4">
-      {/* Search and Filter */}
-      <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#666666] w-4 h-4" />
-          <Input
-            placeholder="Search senior citizens..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onFocus={handleSearchFocus}
-            className="pl-10 h-12 text-sm border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/10 rounded-xl bg-white transition-all duration-200"
-          />
+      {/* Toolbar */}
+      <div className="sticky top-2 z-10">
+        <div className="bg-white/80 backdrop-blur border border-gray-200/60 shadow-sm rounded-2xl p-3">
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8391a2] w-4 h-4" />
+              <Input
+                placeholder="Search seniors by name..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onFocus={handleSearchFocus}
+                className="pl-10 h-10 text-sm border-gray-200 focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/10 rounded-xl bg-white"
+              />
 
-          {/* Search Suggestions */}
-          {showSearchSuggestions && recentSearches.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10">
-              <div className="p-2">
-                <p className="text-xs text-[#666666] font-medium mb-2 px-2">
-                  Recent Searches
-                </p>
-                {recentSearches.map((search, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSearch(search)}
-                    className="w-full text-left px-3 py-2 text-sm text-[#333333] hover:bg-gray-50 rounded-lg transition-colors">
-                    <Search className="w-3 h-3 inline mr-2 text-[#666666]" />
-                    {search}
-                  </button>
-                ))}
-              </div>
+              {/* Search Suggestions */}
+              {showSearchSuggestions && recentSearches.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10">
+                  <div className="p-2">
+                    <p className="text-xs text-[#666666] font-medium mb-2 px-2">
+                      Recent Searches
+                    </p>
+                    {recentSearches.map((search, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSearch(search)}
+                        className="w-full text-left px-3 py-2 text-sm text-[#333333] hover:bg-gray-50 rounded-lg transition-colors">
+                        <Search className="w-3 h-3 inline mr-2 text-[#666666]" />
+                        {search}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="flex space-x-2 overflow-x-auto pb-1">
-          <Button
-            variant={filterStatus === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterStatus('all')}
-            className="whitespace-nowrap rounded-full text-xs px-3 py-1 h-8">
-            All
-          </Button>
-          <Button
-            variant={filterStatus === 'active' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterStatus('active')}
-            className="whitespace-nowrap rounded-full text-xs px-3 py-1 h-8">
-            Active
-          </Button>
-          <Button
-            variant={filterStatus === 'inactive' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilterStatus('inactive')}
-            className="whitespace-nowrap rounded-full text-xs px-3 py-1 h-8">
-            Inactive
-          </Button>
+            {/* Filters */}
+            <div className="hidden sm:flex items-center gap-2">
+              <Button
+                variant={filterStatus === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterStatus('all')}
+                className="h-9 rounded-full text-xs">
+                All
+              </Button>
+              <Button
+                variant={filterStatus === 'active' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterStatus('active')}
+                className="h-9 rounded-full text-xs">
+                Active
+              </Button>
+              <Button
+                variant={filterStatus === 'inactive' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterStatus('inactive')}
+                className="h-9 rounded-full text-xs">
+                Inactive
+              </Button>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              {/* View toggle */}
+              <div className="bg-gray-100 rounded-lg p-1 flex">
+                {/* <Button
+                  variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                  size="icon"
+                  onClick={() => setViewMode('cards')}
+                  className="h-9 w-9 rounded-md">
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="icon"
+                  onClick={() => setViewMode('table')}
+                  className="h-9 w-9 rounded-md">
+                  <TableIcon className="w-4 h-4" />
+                </Button> */}
+              </div>
+
+              {/* <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToCSV}
+                className="h-9 rounded-lg text-xs border-[#00af8f] text-[#00af8f] hover:bg-[#00af8f] hover:text-white">
+                <Download className="w-4 h-4 mr-1" />
+                Export
+              </Button> */}
+
+              {/* <Button
+                onClick={handleAddSenior}
+                size="sm"
+                className="h-9 rounded-lg bg-[#00af8f] hover:bg-[#00af90] text-white text-xs">
+                <UserPlus className="w-4 h-4 mr-1" />
+                Add Senior
+              </Button> */}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Members List */}
+      {/* Senior Citizens List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
@@ -495,7 +778,7 @@ export default function BASCADashboard() {
             <p className="text-[#666666] text-sm">Loading senior citizens...</p>
           </div>
         </div>
-      ) : bascaMembers.length === 0 ? (
+      ) : seniorCitizens.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-20 h-20 bg-[#00af8f]/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Users className="w-10 h-10 text-[#00af8f]" />
@@ -515,56 +798,343 @@ export default function BASCADashboard() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {bascaMembers
-            .filter(member => {
-              const matchesSearch =
-                searchTerm === '' ||
-                `${member.firstName} ${member.lastName}`
-                  .toLowerCase()
-                  .includes(searchTerm.toLowerCase());
-              const matchesStatus =
-                filterStatus === 'all' ||
-                (filterStatus === 'active' && member.isActive) ||
-                (filterStatus === 'inactive' && !member.isActive);
-              return matchesSearch && matchesStatus;
-            })
-            .map(member => (
-              <Card
-                key={member.id}
-                className="border-0 bg-white shadow-md rounded-xl cursor-pointer hover:shadow-lg transition-all duration-200"
-                onClick={() => handleViewMember(member)}>
-                <CardContent className="p-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-[#00af8f]/10 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-[#00af8f]" />
+        <>
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-3 mb-2">
+            <div className="bg-white rounded-xl p-4 border border-gray-200/60 shadow-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[#8391a2] font-medium">
+                Total
+              </p>
+              <p className="mt-1 text-2xl font-bold text-[#0f172a]">
+                {
+                  seniorCitizens.filter(senior => {
+                    const matchesSearch =
+                      searchTerm === '' ||
+                      `${senior.firstName || ''} ${senior.lastName || ''}`
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase());
+                    const matchesStatus =
+                      filterStatus === 'all' ||
+                      (filterStatus === 'active' &&
+                        senior.status === 'active') ||
+                      (filterStatus === 'inactive' &&
+                        senior.status !== 'active');
+                    return matchesSearch && matchesStatus;
+                  }).length
+                }
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-gray-200/60 shadow-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[#8391a2] font-medium">
+                Active
+              </p>
+              <p className="mt-1 text-2xl font-bold text-[#00af8f]">
+                {
+                  seniorCitizens.filter(senior => {
+                    const matchesSearch =
+                      searchTerm === '' ||
+                      `${senior.firstName || ''} ${senior.lastName || ''}`
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase());
+                    const matchesStatus =
+                      filterStatus === 'all' || filterStatus === 'active';
+                    return (
+                      matchesSearch &&
+                      matchesStatus &&
+                      senior.status === 'active'
+                    );
+                  }).length
+                }
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-gray-200/60 shadow-sm">
+              <p className="text-[11px] uppercase tracking-wide text-[#8391a2] font-medium">
+                Inactive
+              </p>
+              <p className="mt-1 text-2xl font-bold text-[#64748b]">
+                {
+                  seniorCitizens.filter(senior => {
+                    const matchesSearch =
+                      searchTerm === '' ||
+                      `${senior.firstName || ''} ${senior.lastName || ''}`
+                        .toLowerCase()
+                        .includes(searchTerm.toLowerCase());
+                    const matchesStatus =
+                      filterStatus === 'all' || filterStatus === 'inactive';
+                    return (
+                      matchesSearch &&
+                      matchesStatus &&
+                      senior.status !== 'active'
+                    );
+                  }).length
+                }
+              </p>
+            </div>
+          </div>
+
+          {/* Content based on view mode */}
+          {viewMode === 'cards' ? (
+            <div className="space-y-2">
+              {seniorCitizens
+                .filter(senior => {
+                  const fullName = getFullName(senior).toLowerCase();
+                  const matchesSearch =
+                    searchTerm === '' ||
+                    fullName.includes(searchTerm.toLowerCase());
+                  const status = getStatus(senior);
+                  const matchesStatus =
+                    filterStatus === 'all' ||
+                    (filterStatus === 'active' && status === 'active') ||
+                    (filterStatus === 'inactive' && status !== 'active');
+                  return matchesSearch && matchesStatus;
+                })
+                .map(senior => (
+                  <Card
+                    key={senior.id}
+                    className="border border-gray-200/60 bg-white shadow-sm hover:shadow-md rounded-2xl cursor-pointer transition-all duration-200"
+                    onClick={() => handleViewSenior(senior)}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 rounded-xl">
+                          <AvatarImage src={getProfilePicture(senior)} alt="" />
+                          <AvatarFallback className="bg-[#00af8f]/10 text-[#00af8f]">
+                            {`${getFirstName(senior)[0] ?? 'N'}${
+                              getLastName(senior)[0] ?? 'A'
+                            }`}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-[#0f172a] text-sm truncate">
+                              {getFullName(senior) || 'Unnamed'}
+                            </h3>
+                            <Badge
+                              variant={
+                                getStatus(senior) === 'active'
+                                  ? 'default'
+                                  : 'secondary'
+                              }
+                              className={`text-[10px] px-2 py-0.5 ${
+                                getStatus(senior) === 'active'
+                                  ? 'bg-[#00af8f]'
+                                  : 'bg-gray-400'
+                              }`}>
+                              {getStatus(senior) === 'active'
+                                ? 'Active'
+                                : 'Inactive'}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-[#64748b] truncate">
+                            {getEmail(senior) && getPhone(senior)
+                              ? `${getEmail(senior)} • ${getPhone(senior)}`
+                              : getEmail(senior) || getPhone(senior) || '—'}
+                          </p>
+                          <p className="text-[11px] text-[#94a3b8] truncate">
+                            {getBarangay(senior) || '—'}
+                          </p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <ChevronRight className="w-4 h-4 text-[#94a3b8]" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+            </div>
+          ) : (
+            /* Table View */
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-[#666666] uppercase tracking-wider">
+                        Senior Citizen
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-[#666666] uppercase tracking-wider">
+                        Contact
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-[#666666] uppercase tracking-wider">
+                        Location
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-[#666666] uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-[#666666] uppercase tracking-wider">
+                        Registration
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-[#666666] uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {getPaginatedSeniors().map(senior => (
+                      <tr
+                        key={senior.id}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleViewSenior(senior)}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-[#00af8f]/10 rounded-full flex items-center justify-center">
+                              <Users className="w-4 h-4 text-[#00af8f]" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-[#333333]">
+                                {getFullName(senior) || 'Unnamed'}
+                              </div>
+                              <div className="text-xs text-[#666666]">
+                                {getGender(senior) || '—'}
+                                {getDOB(senior)
+                                  ? ` • ${new Date(
+                                      getDOB(senior)
+                                    ).toLocaleDateString()}`
+                                  : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-[#333333]">
+                            {getEmail(senior) || '—'}
+                          </div>
+                          <div className="text-xs text-[#666666]">
+                            {getPhone(senior) || '—'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-[#333333]">
+                            {getBarangay(senior) || '—'}
+                          </div>
+                          <div className="text-xs text-[#666666] truncate max-w-24">
+                            {getAddress(senior) || '—'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant={
+                              getStatus(senior) === 'active'
+                                ? 'default'
+                                : 'secondary'
+                            }
+                            className={`text-xs px-2 py-1 ${
+                              getStatus(senior) === 'active'
+                                ? 'bg-[#00af8f]'
+                                : 'bg-gray-400'
+                            }`}>
+                            {getStatus(senior) === 'active'
+                              ? 'Active'
+                              : 'Inactive'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-[#333333]">
+                            {getRegistrationDate(senior)
+                              ? new Date(
+                                  getRegistrationDate(senior)
+                                ).toLocaleDateString()
+                              : '—'}
+                          </div>
+                          <div className="text-xs text-[#666666]">
+                            {getOSCAId(senior) || '—'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleViewSenior(senior);
+                              }}>
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleEditSenior(senior);
+                              }}>
+                              Edit
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="bg-gray-50 px-4 py-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-[#666666]">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                      {Math.min(
+                        currentPage * itemsPerPage,
+                        getFilteredSeniors().length
+                      )}{' '}
+                      of {getFilteredSeniors().length} results
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[#333333] text-sm truncate">
-                        {member.firstName} {member.lastName}
-                      </h3>
-                      <p className="text-xs text-[#666666] truncate">
-                        {member.position}
-                      </p>
-                      <p className="text-xs text-[#999999] truncate">
-                        {member.barangay}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end space-y-1">
-                      <Badge
-                        variant={member.isActive ? 'default' : 'secondary'}
-                        className={`text-xs px-2 py-1 ${
-                          member.isActive ? 'bg-[#00af8f]' : 'bg-gray-400'
-                        }`}>
-                        {member.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <ChevronRight className="w-4 h-4 text-[#666666]" />
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="h-8 px-3 text-xs">
+                        Previous
+                      </Button>
+
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={
+                                currentPage === pageNum ? 'default' : 'outline'
+                              }
+                              size="sm"
+                              onClick={() => handlePageChange(pageNum)}
+                              className="h-8 w-8 p-0 text-xs">
+                              {pageNum}
+                            </Button>
+                          );
+                        }
+                      )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="h-8 px-3 text-xs">
+                        Next
+                      </Button>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-        </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -583,7 +1153,7 @@ export default function BASCADashboard() {
                 Total Senior Citizens
               </p>
               <p className="text-xl font-bold text-[#333333]">
-                {isLoading ? '...' : bascaMembers.length}
+                {isLoading ? '...' : seniorCitizens.length}
               </p>
             </div>
           </CardContent>
@@ -635,21 +1205,21 @@ export default function BASCADashboard() {
         <Card className="border-0 bg-white shadow-md rounded-xl">
           <CardContent className="p-3">
             <div className="space-y-3">
-              {bascaMembers.slice(0, 3).map(member => (
-                <div key={member.id} className="flex items-center space-x-3">
+              {seniorCitizens.slice(0, 3).map(senior => (
+                <div key={senior.id} className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-[#00af8f]/10 rounded-full flex items-center justify-center">
                     <Users className="w-4 h-4 text-[#00af8f]" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-[#333333]">
-                      {member.firstName} {member.lastName}
+                      {senior.firstName} {senior.lastName}
                     </p>
-                    <p className="text-xs text-[#666666]">{member.barangay}</p>
+                    <p className="text-xs text-[#666666]">{senior.barangay}</p>
                   </div>
                   <Badge
                     variant="secondary"
                     className="text-xs px-2 py-1 bg-[#00af8f] text-white">
-                    {member.isActive ? 'Active' : 'Pending'}
+                    {senior.status === 'active' ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
               ))}
@@ -670,9 +1240,13 @@ export default function BASCADashboard() {
               <Database className="w-5 h-5 text-green-500" />
             </div>
             <div>
-              <h3 className="font-semibold text-[#333333]">Online Mode</h3>
+              <h3 className="font-semibold text-[#333333]">
+                {isOnline ? 'Online Mode' : 'Offline Mode'}
+              </h3>
               <p className="text-xs text-[#666666]">
-                Connected to central database
+                {isOnline
+                  ? 'Connected to central database'
+                  : 'Working locally on this device'}
               </p>
             </div>
           </div>
@@ -680,8 +1254,11 @@ export default function BASCADashboard() {
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#666666]">Connection Status:</span>
-              <Badge className="bg-green-500 text-white text-xs">
-                Connected
+              <Badge
+                className={`${
+                  isOnline ? 'bg-green-500' : 'bg-red-500'
+                } text-white text-xs`}>
+                {isOnline ? 'Connected' : 'Offline'}
               </Badge>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -690,60 +1267,86 @@ export default function BASCADashboard() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#666666]">Pending Sync:</span>
-              <span className="text-[#333333]">0 records</span>
+              <span className="text-[#333333]">
+                {offlineQueue} {offlineQueue === 1 ? 'record' : 'records'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={loadOfflineSeniors}
+                disabled={isLoadingOffline}
+                className="text-xs">
+                {isLoadingOffline ? 'Refreshing…' : 'Refresh Offline Data'}
+              </Button>
+              <Button
+                size="sm"
+                onClick={syncOfflineData}
+                disabled={!isOnline || syncInProgress}
+                className="text-xs bg-[#00af8f] hover:bg-[#00af90] text-white">
+                {syncInProgress ? 'Syncing…' : 'Sync Now'}
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Offline Features */}
+      {/* Offline Seniors */}
       <div className="space-y-3">
         <h3 className="text-base font-semibold text-[#333333] px-1">
-          Offline Capabilities
+          Offline Seniors
         </h3>
-        <div className="grid grid-cols-1 gap-3">
-          <Card className="border-0 bg-white shadow-md rounded-xl">
-            <CardContent className="p-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-[#00af8f]/10 rounded-xl flex items-center justify-center">
-                  <UserPlus className="w-5 h-5 text-[#00af8f]" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-[#333333] text-sm">
-                    Offline Registration
-                  </h4>
-                  <p className="text-xs text-[#666666]">
-                    Register seniors without internet
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" className="text-xs">
-                  Enable
-                </Button>
+        <Card className="border-0 bg-white shadow-md rounded-xl">
+          <CardContent className="p-3">
+            {isLoadingOffline ? (
+              <div className="text-sm text-[#666666]">
+                Loading offline entries…
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 bg-white shadow-md rounded-xl">
-            <CardContent className="p-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-[#ffd416]/10 rounded-xl flex items-center justify-center">
-                  <Database className="w-5 h-5 text-[#ffd416]" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-[#333333] text-sm">
-                    Local Storage
-                  </h4>
-                  <p className="text-xs text-[#666666]">
-                    Data saved locally on device
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" className="text-xs">
-                  View
-                </Button>
+            ) : offlineSeniors.length === 0 ? (
+              <div className="text-sm text-[#666666]">
+                No offline entries found.
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <div className="space-y-2">
+                {offlineSeniors.map(s => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="min-w-0">
+                      <div className="font-medium text-[#333333] truncate">
+                        {(s.firstName || s.first_name || 'Unnamed') +
+                          ' ' +
+                          (s.lastName || s.last_name || '')}
+                      </div>
+                      <div className="text-xs text-[#666666] truncate">
+                        {s.barangay || '—'} • Updated{' '}
+                        {new Date(
+                          s.lastModified || s.updatedAt || Date.now()
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="text-xs bg-orange-500 text-white">
+                        Pending Sync
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setSelectedSenior(s);
+                          setIsViewSeniorOpen(true);
+                        }}>
+                        <Eye className="w-3 h-3 mr-1" /> View
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -768,11 +1371,11 @@ export default function BASCADashboard() {
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#666666]">Total Records:</span>
-              <span className="text-[#333333]">{bascaMembers.length}</span>
+              <span className="text-[#333333]">{seniorCitizens.length}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#666666]">Synced:</span>
-              <span className="text-[#333333]">{bascaMembers.length}</span>
+              <span className="text-[#333333]">{seniorCitizens.length}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-[#666666]">Pending:</span>
@@ -830,7 +1433,7 @@ export default function BASCADashboard() {
                 Total Seniors
               </p>
               <p className="text-xl font-bold text-[#333333]">
-                {isLoading ? '...' : bascaMembers.length}
+                {isLoading ? '...' : seniorCitizens.length}
               </p>
             </div>
           </CardContent>
@@ -1023,7 +1626,7 @@ export default function BASCADashboard() {
       case 'registrations':
         return renderRegistrations();
       case 'seniors':
-        return renderSeniors();
+        return renderMembers();
       case 'offline':
         return renderOffline();
       case 'sync':
@@ -1059,6 +1662,7 @@ export default function BASCADashboard() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            <MiniPWAStatus />
             <Button
               variant="ghost"
               size="sm"
@@ -1069,7 +1673,7 @@ export default function BASCADashboard() {
                 className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
               />
             </Button>
-            <Button variant="ghost" size="sm" className="p-2">
+            {/* <Button variant="ghost" size="sm" className="p-2">
               <Bell className="w-4 h-4" />
             </Button>
             <Button
@@ -1078,7 +1682,7 @@ export default function BASCADashboard() {
               className="bg-[#00af8f] hover:bg-[#00af90] text-white text-xs px-3 py-2 h-8">
               <Plus className="w-3 h-3 mr-1" />
               Register Senior
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -1177,41 +1781,46 @@ export default function BASCADashboard() {
         onClose={() => setIsSeniorModalOpen(false)}
         onSuccess={() => {
           setIsSeniorModalOpen(false);
+          // Refresh the data after successful registration
+          fetchSeniorCitizens();
           toast({
             title: 'Success',
-            description: 'Senior citizen registered successfully',
+            description:
+              'Senior citizen registered successfully. Check the console for login credentials.',
             variant: 'default'
           });
         }}
       />
 
-      {selectedMember && (
-        <>
-          <EditBascaMemberModal
-            isOpen={isEditModalOpen}
-            onClose={() => setIsEditModalOpen(false)}
-            member={selectedMember}
-            onSuccess={handleMemberSuccess}
-          />
-
-          <ViewBascaMemberModal
-            isOpen={isViewModalOpen}
-            onClose={() => setIsViewModalOpen(false)}
-            member={selectedMember}
-            onEdit={() => {
-              setIsViewModalOpen(false);
-              setIsEditModalOpen(true);
-            }}
-          />
-
-          <DeleteBascaMemberDialog
-            isOpen={isDeleteDialogOpen}
-            onClose={() => setIsDeleteDialogOpen(false)}
-            member={selectedMember}
-            onSuccess={handleMemberSuccess}
-          />
-        </>
+      {/* Senior View */}
+      {selectedSenior && (
+        <ViewSeniorModal
+          isOpen={isViewSeniorOpen}
+          onClose={() => setIsViewSeniorOpen(false)}
+          senior={mapSeniorRecordToModel(selectedSenior)}
+          onEdit={() => {
+            setIsViewSeniorOpen(false);
+            setIsEditSeniorOpen(true);
+          }}
+        />
       )}
+
+      {/* Senior Edit (reusing AddSeniorMobile) */}
+      <AddSeniorMobile
+        isOpen={isEditSeniorOpen}
+        onClose={() => setIsEditSeniorOpen(false)}
+        onSuccess={() => {
+          setIsEditSeniorOpen(false);
+          fetchSeniorCitizens();
+          toast({
+            title: 'Success',
+            description: 'Senior citizen updated successfully.',
+            variant: 'default'
+          });
+        }}
+        mode="edit"
+        initialData={selectedSenior}
+      />
     </div>
   );
 }

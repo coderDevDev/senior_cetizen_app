@@ -265,31 +265,23 @@ export function usePWA(): PWAState & PWAActions {
 async function processSyncItem(item: any): Promise<void> {
   const { operation, data } = item;
 
+  // Directly call the data layer for simulation; replace with API routes if needed
+  const { SeniorCitizensAPI } = await import('@/lib/api/senior-citizens');
+
   switch (operation) {
     case 'CREATE_SENIOR':
-      await fetch('/api/seniors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      await SeniorCitizensAPI.createSeniorCitizen(data);
       break;
 
     case 'UPDATE_SENIOR':
-      await fetch(`/api/seniors/${data.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      await SeniorCitizensAPI.updateSeniorCitizen(data);
       break;
 
     case 'DELETE_SENIOR':
-      await fetch(`/api/seniors/${data.id}`, {
-        method: 'DELETE'
-      });
+      await SeniorCitizensAPI.deleteSeniorCitizen(data.id);
       break;
 
     default:
       console.warn('Unknown sync operation:', operation);
   }
 }
-

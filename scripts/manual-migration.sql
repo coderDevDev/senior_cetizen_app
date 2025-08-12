@@ -75,6 +75,10 @@ ADD COLUMN IF NOT EXISTS monthly_pension DECIMAL(10,2) DEFAULT 0;
 ALTER TABLE public.senior_citizens 
 ADD COLUMN IF NOT EXISTS living_condition living_condition DEFAULT 'independent';
 
+-- Add created_by column to track who created the senior citizen record
+ALTER TABLE public.senior_citizens 
+ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES public.users(id);
+
 -- 5. Create beneficiaries table (safe to run multiple times)
 CREATE TABLE IF NOT EXISTS public.beneficiaries (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

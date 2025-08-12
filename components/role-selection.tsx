@@ -135,7 +135,7 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
         </div>
 
         {/* Role Cards - Mobile Layout */}
-        <div className="flex-1 space-y-6 mb-8 lg:hidden">
+        <div className="flex-1 space-y-4 mb-8 lg:hidden">
           {roles.map(role => {
             const Icon = role.icon;
             const isSelected = selectedRole === role.id;
@@ -143,89 +143,53 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
             return (
               <Card
                 key={role.id}
-                className={`group cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl ${
+                className={`group cursor-pointer transition-all duration-300 active:scale-95 ${
                   isSelected
-                    ? `bg-gradient-to-br ${role.bgGradient} border-2 border-transparent bg-clip-padding shadow-2xl ${role.glowColor} scale-105`
-                    : 'bg-white/90 backdrop-blur-sm border border-[#E0DDD8] hover:border-[#00af8f] hover:shadow-xl'
+                    ? `bg-gradient-to-r ${role.gradient} border-0 shadow-lg scale-[1.02]`
+                    : 'bg-white border border-[#E0DDD8] hover:border-[#00af8f] hover:shadow-md'
                 }`}
                 onClick={() => setSelectedRole(role.id)}>
-                <CardContent className="p-8">
-                  <div className="flex items-start gap-6">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
                     <div className="relative flex-shrink-0">
-                      {isSelected && (
-                        <div
-                          className={`absolute inset-0 bg-gradient-to-r ${role.gradient} rounded-2xl blur-md opacity-75 animate-pulse`}
-                        />
-                      )}
                       <div
-                        className={`relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-500 ${
+                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                           isSelected
-                            ? `bg-gradient-to-r ${role.gradient} scale-110`
-                            : 'bg-[#feffff] group-hover:scale-105'
+                            ? 'bg-white/20 backdrop-blur-sm'
+                            : 'bg-[#feffff]'
                         }`}>
                         <Icon
-                          className={`w-8 h-8 transition-all duration-500 ${
+                          className={`w-7 h-7 transition-all duration-300 ${
                             isSelected ? 'text-white' : role.iconColor
                           }`}
                         />
                       </div>
                       {isSelected && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#00af8f] rounded-full flex items-center justify-center shadow-lg animate-bounce">
-                          <Check className="w-4 h-4 text-white" />
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <Check className="w-3 h-3 text-[#00af8f]" />
                         </div>
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="mb-4">
-                        <h3 className="text-xl font-bold text-[#333333] mb-2">
-                          {role.title}
-                        </h3>
-                        <p className="text-lg font-medium text-[#666666] mb-3">
-                          {role.subtitle}
-                        </p>
-                      </div>
-                      <p className="text-[#333333] text-base leading-relaxed mb-4">
-                        {role.description}
-                      </p>
+                      <h3
+                        className={`text-lg font-semibold transition-all duration-300 ${
+                          isSelected ? 'text-white' : 'text-[#333333]'
+                        }`}>
+                        {role.title}
+                      </h3>
+                    </div>
 
-                      <div className="space-y-3">
-                        {role.features.slice(0, 3).map((feature, index) => (
-                          <div key={index} className="flex items-center gap-3">
-                            <div
-                              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                                isSelected
-                                  ? `bg-gradient-to-r ${role.gradient}`
-                                  : 'bg-[#ffd416]'
-                              }`}
-                            />
-                            <span
-                              className={`text-sm transition-all duration-300 ${
-                                isSelected
-                                  ? 'text-[#333333] font-medium'
-                                  : 'text-[#666666]'
-                              }`}>
-                              {feature}
-                            </span>
-                          </div>
-                        ))}
-                        {role.features.length > 3 && (
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                                isSelected
-                                  ? `bg-gradient-to-r ${role.gradient}`
-                                  : 'bg-[#ffd416]'
-                              }`}
-                            />
-                            <span
-                              className={`text-sm transition-all duration-300 ${
-                                isSelected
-                                  ? 'text-[#333333] font-medium'
-                                  : 'text-[#666666]'
-                              }`}>
-                              +{role.features.length - 3} more features
-                            </span>
+                    <div className="flex-shrink-0">
+                      <div
+                        className={`w-6 h-6 rounded-full border-2 transition-all duration-300 ${
+                          isSelected
+                            ? 'border-white bg-white'
+                            : 'border-[#E0DDD8]'
+                        }`}>
+                        {isSelected && (
+                          <div className="w-full h-full rounded-full bg-[#00af8f] flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
                       </div>
@@ -335,13 +299,13 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
 
         {/* Action Buttons */}
         <div className="flex gap-4 pb-safe lg:pb-8 lg:justify-center lg:gap-8">
-          <Button
+          {/* <Button
             variant="outline"
             onClick={onBack}
             className="flex-1 lg:flex-none lg:px-12 bg-white/80 backdrop-blur-sm border-[#00af8f] hover:bg-white hover:shadow-lg hover:border-[#00af90] transition-all duration-300 senior-button lg:h-20 lg:text-xl lg:font-semibold lg:rounded-2xl text-[#333333]">
             <ArrowLeft className="w-5 h-5 lg:w-7 lg:h-7 mr-3" />
             Back
-          </Button>
+          </Button> */}
           <Button
             onClick={() => {
               if (selectedRole) {

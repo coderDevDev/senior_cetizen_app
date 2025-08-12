@@ -79,6 +79,10 @@ export interface CreateSeniorCitizenData {
     monthlyIncome?: number;
     isDependent: boolean;
   }>;
+
+  // Login credentials (generated automatically)
+  email?: string;
+  password?: string;
 }
 
 export interface UpdateSeniorCitizenData
@@ -89,13 +93,14 @@ export interface UpdateSeniorCitizenData
 export class SeniorCitizensAPI {
   static async createSeniorCitizen(
     data: CreateSeniorCitizenData,
-    userId?: string
+    createdByUserId?: string
   ) {
+    console.log({ data });
     try {
       console.log('Creating senior citizen:', data);
 
-      // Get current user if no userId provided
-      if (!userId) {
+      // Get current user if no createdByUserId provided
+      if (!createdByUserId) {
         const {
           data: { user },
           error: authError
@@ -103,44 +108,88 @@ export class SeniorCitizensAPI {
         if (authError || !user) {
           throw new Error('User not authenticated');
         }
-        userId = user.id;
+        createdByUserId = user.id;
       }
 
-      // Start a transaction by creating the senior citizen record first
-      const seniorCitizenData: Database['public']['Tables']['senior_citizens']['Insert'] =
-        {
-          user_id: userId,
-          first_name: data.firstName,
-          last_name: data.lastName,
-          barangay: data.barangay,
-          barangay_code: data.barangayCode,
-          region_code: data.addressData?.region?.region_code,
-          province_code: data.addressData?.province?.province_code,
-          city_code: data.addressData?.city?.city_code,
-          date_of_birth: data.dateOfBirth,
-          gender: data.gender,
-          address: data.address,
-          contact_person: data.contactPerson,
-          contact_phone: data.contactPhone,
-          contact_relationship: data.contactRelationship,
-          emergency_contact_name: data.emergencyContactName,
-          emergency_contact_phone: data.emergencyContactPhone,
-          emergency_contact_relationship: data.emergencyContactRelationship,
-          medical_conditions: data.medicalConditions,
-          medications: data.medications,
-          housing_condition: data.housingCondition,
-          physical_health_condition: data.physicalHealthCondition,
-          monthly_income: data.monthlyIncome,
-          monthly_pension: data.monthlyPension,
-          living_condition: data.livingCondition,
-          senior_id_photo: data.seniorIdPhoto,
-          profile_picture: data.profilePicture,
-          notes: data.notes,
-          status: 'active',
-          registration_date: new Date().toISOString(),
-          documents: [],
-          created_by: userId
-        };
+      // Use email and password from the data
+      const email = data.email;
+      const password = data.password;
+
+      // Step 1: Create user account in Supabase Auth
+      const { data: authData, error: authError } =
+        await supabaseAdmin.auth.admin.createUser({
+          email: email,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            role: 'senior'
+          }
+        });
+
+      if (authError || !authData.user) {
+        console.error('Error creating user account:', authError);
+        throw new Error(`Failed to create user account: ${authError?.message}`);
+      }
+
+      const newUserId = authData.user.id;
+      console.log('User account created successfully:', newUserId);
+
+      // Step 2: Create user record in users table
+      const userData = {
+        id: newUserId,
+        email: email,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        role: 'senior',
+        barangay: data.barangay,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { error: userError } = await supabaseAdmin
+        .from('users')
+        .insert(userData);
+
+      if (userError) {
+        console.error('Error creating user record:', userError);
+        // Clean up: delete the auth user if user record creation fails
+        await supabaseAdmin.auth.admin.deleteUser(newUserId);
+        throw new Error(`Failed to create user record: ${userError.message}`);
+      }
+
+      console.log('User record created successfully');
+
+      // Step 3: Create senior citizen record
+      const seniorCitizenData = {
+        user_id: newUserId,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        barangay: data.barangay,
+        barangay_code: data.barangayCode,
+        region_code: data.addressData?.region?.region_code,
+        province_code: data.addressData?.province?.province_code,
+        city_code: data.addressData?.city?.city_code,
+        date_of_birth: data.dateOfBirth,
+        gender: data.gender,
+        address: data.address,
+        contact_person: data.contactPerson,
+        contact_phone: data.contactPhone,
+        contact_relationship: data.contactRelationship,
+        emergency_contact_name: data.emergencyContactName,
+        emergency_contact_phone: data.emergencyContactPhone,
+        emergency_contact_relationship: data.emergencyContactRelationship,
+        medical_conditions: data.medicalConditions,
+        medications: data.medications,
+        notes: data.notes,
+        senior_id_photo: data.seniorIdPhoto,
+        profile_picture: data.profilePicture,
+        status: 'active',
+        registration_date: new Date().toISOString(),
+        documents: [],
+        created_by: createdByUserId
+      };
 
       const { data: seniorCitizen, error: seniorError } = await supabaseAdmin
         .from('senior_citizens')
@@ -150,6 +199,9 @@ export class SeniorCitizensAPI {
 
       if (seniorError) {
         console.error('Error creating senior citizen:', seniorError);
+        // Clean up: delete both user record and auth user
+        await supabaseAdmin.from('users').delete().eq('id', newUserId);
+        await supabaseAdmin.auth.admin.deleteUser(newUserId);
         throw new Error(
           `Failed to create senior citizen: ${seniorError.message}`
         );
@@ -157,21 +209,20 @@ export class SeniorCitizensAPI {
 
       console.log('Senior citizen created successfully:', seniorCitizen.id);
 
-      // Create beneficiaries if any
+      // Step 4: Create beneficiaries if any
       if (data.beneficiaries && data.beneficiaries.length > 0) {
-        const beneficiariesData: Database['public']['Tables']['beneficiaries']['Insert'][] =
-          data.beneficiaries.map(beneficiary => ({
-            senior_citizen_id: seniorCitizen.id,
-            name: beneficiary.name,
-            relationship: beneficiary.relationship,
-            date_of_birth: beneficiary.dateOfBirth,
-            gender: beneficiary.gender,
-            address: beneficiary.address,
-            contact_phone: beneficiary.contactPhone,
-            occupation: beneficiary.occupation,
-            monthly_income: beneficiary.monthlyIncome || 0,
-            is_dependent: beneficiary.isDependent
-          }));
+        const beneficiariesData = data.beneficiaries.map(beneficiary => ({
+          senior_citizen_id: seniorCitizen.id,
+          name: beneficiary.name,
+          relationship: beneficiary.relationship,
+          date_of_birth: beneficiary.dateOfBirth,
+          gender: beneficiary.gender,
+          address: beneficiary.address,
+          contact_phone: beneficiary.contactPhone,
+          occupation: beneficiary.occupation,
+          monthly_income: beneficiary.monthlyIncome || 0,
+          is_dependent: beneficiary.isDependent
+        }));
 
         const { error: beneficiariesError } = await supabaseAdmin
           .from('beneficiaries')
@@ -188,27 +239,16 @@ export class SeniorCitizensAPI {
         }
       }
 
-      // Update the user's first and last name if provided
-      if (data.firstName || data.lastName) {
-        const { error: userUpdateError } = await supabaseAdmin
-          .from('users')
-          .update({
-            first_name: data.firstName,
-            last_name: data.lastName,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', userId);
-
-        if (userUpdateError) {
-          console.error('Error updating user profile:', userUpdateError);
-          // Don't throw error here, senior citizen was created successfully
-        }
-      }
-
       return {
         success: true,
         message: 'Senior citizen created successfully',
-        data: seniorCitizen
+        data: {
+          ...seniorCitizen,
+          loginCredentials: {
+            email: email,
+            password: password
+          }
+        }
       };
     } catch (error) {
       console.error('Error in createSeniorCitizen:', error);
