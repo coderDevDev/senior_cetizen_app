@@ -9,18 +9,18 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<
-    'osca' | 'basca' | 'senior' | null
+    'student' | 'teacher' | null
   >(null);
 
-  const role = searchParams.get('role') as 'osca' | 'basca' | 'senior' | null;
+  const role = searchParams.get('role') as 'student' | 'teacher' | null;
 
   useEffect(() => {
-    if (role && (role === 'osca' || role === 'basca' || role === 'senior')) {
+    if (role && (role === 'student' || role === 'teacher')) {
       setSelectedRole(role);
     }
   }, [role]);
 
-  const handleRoleSelect = (role: 'osca' | 'basca' | 'senior') => {
+  const handleRoleSelect = (role: 'student' | 'teacher') => {
     router.push(`/login?role=${role}`);
   };
 

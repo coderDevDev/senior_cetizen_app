@@ -1282,7 +1282,11 @@ export default function BASCADashboard() {
               </Button>
               <Button
                 size="sm"
-                onClick={syncOfflineData}
+                onClick={async () => {
+                  await syncOfflineData();
+                  // Refresh the offline seniors list after sync
+                  await loadOfflineSeniors();
+                }}
                 disabled={!isOnline || syncInProgress}
                 className="text-xs bg-[#00af8f] hover:bg-[#00af90] text-white">
                 {syncInProgress ? 'Syncing…' : 'Sync Now'}

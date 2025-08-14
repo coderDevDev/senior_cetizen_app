@@ -13,61 +13,36 @@ import { ArrowLeft, Eye, EyeOff, Shield, Users, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface RegisterScreenProps {
-  selectedRole: 'osca' | 'basca' | 'senior';
+  selectedRole: 'student' | 'teacher';
   onBack: () => void;
   onLogin: () => void;
 }
 
-// Base schema for all roles
+// Base schema for MS roles
 const baseSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters'),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+  firstName: z.string().optional(),
+  middleName: z.string().optional(),
+  lastName: z.string().optional(),
+  fullName: z.string().optional(),
+  gradeLevel: z.string().optional(),
+  learningStyle: z
+    .enum(['visual', 'auditory', 'reading_writing', 'kinesthetic'])
+    .optional(),
   email: z.string().email('Please enter a valid email address'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string()
 });
 
-// Role-specific schemas
-const oscaSchema = baseSchema.extend({
-  department: z.string().min(1, 'Department is required'),
-  position: z.string().min(1, 'Position is required'),
-  employeeId: z.string().min(1, 'Employee ID is required')
-});
-
-const bascaSchema = baseSchema.extend({
-  barangay: z.string().min(1, 'Barangay is required'),
-  barangayCode: z.string().min(1, 'Barangay code is required')
-});
-
-const seniorSchema = baseSchema.extend({
-  dateOfBirth: z.string().min(1, 'Date of birth is required'),
-  address: z.string().min(10, 'Address must be at least 10 characters'),
-  emergencyContactName: z.string().min(2, 'Emergency contact name is required'),
-  emergencyContactPhone: z
-    .string()
-    .min(10, 'Emergency contact phone is required'),
-  emergencyContactRelationship: z.string().min(1, 'Relationship is required')
-});
+// Role-specific schemas (Teacher/Student currently share base)
+const teacherSchema = baseSchema;
+const studentSchema = baseSchema;
 
 // Create the appropriate schema based on role
-const createRegisterSchema = (role: 'osca' | 'basca' | 'senior') => {
-  switch (role) {
-    case 'osca':
-      return oscaSchema;
-    case 'basca':
-      return bascaSchema;
-    case 'senior':
-      return seniorSchema;
-    default:
-      return baseSchema;
-  }
+const createRegisterSchema = (role: 'student' | 'teacher') => {
+  return role === 'teacher' ? teacherSchema : studentSchema;
 };
 
-type RegisterFormData =
-  | z.infer<typeof oscaSchema>
-  | z.infer<typeof bascaSchema>
-  | z.infer<typeof seniorSchema>;
+type RegisterFormData = z.infer<typeof baseSchema>;
 
 export function RegisterScreen({
   selectedRole,
@@ -94,37 +69,27 @@ export function RegisterScreen({
   const password = watch('password');
 
   const roleConfig = {
-    osca: {
+    teacher: {
       icon: Shield,
-      title: 'OSCA Superadmin',
-      subtitle: 'Office of Senior Citizens Affairs',
-      description: 'System administration and management',
+      title: 'Teacher Sign Up',
+      subtitle: 'Educator Portal',
+      description: 'Create lessons, quizzes, and manage classes',
       color: 'text-[#00af8f]',
       bgColor: 'bg-[#00af8f]',
       borderColor: 'border-[#00af8f]',
-      defaultEmail: 'admin@osca.gov.ph'
+      defaultEmail: 'teacher@example.com'
     },
-    basca: {
-      icon: Users,
-      title: 'BASCA Admin',
-      subtitle: 'Barangay Association of Senior Citizens Affairs',
-      description: 'Local barangay management',
+    student: {
+      icon: User,
+      title: 'Student Sign Up',
+      subtitle: 'Learning Portal',
+      description: 'Access lessons, take quizzes, and submit activities',
       color: 'text-[#ffd416]',
       bgColor: 'bg-[#ffd416]',
       borderColor: 'border-[#ffd416]',
-      defaultEmail: 'admin@basca.gov.ph'
-    },
-    senior: {
-      icon: User,
-      title: 'Senior Citizen',
-      subtitle: 'Self-Service Portal',
-      description: 'Personal account access',
-      color: 'text-[#00af8f]',
-      bgColor: 'bg-[#00af8f]',
-      borderColor: 'border-[#00af8f]',
-      defaultEmail: 'senior@example.com'
+      defaultEmail: 'student@example.com'
     }
-  };
+  } as const;
 
   const config = roleConfig[selectedRole];
   const Icon = config.icon;
@@ -202,7 +167,7 @@ export function RegisterScreen({
                 </Alert>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label
                     htmlFor="firstName"
@@ -212,17 +177,25 @@ export function RegisterScreen({
                   <Input
                     id="firstName"
                     type="text"
-                    placeholder="John"
+                    placeholder="Juan"
                     className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
                     {...register('firstName')}
                   />
-                  {(errors as any).firstName && (
-                    <p className="text-red-500 text-sm">
-                      {(errors as any).firstName.message}
-                    </p>
-                  )}
                 </div>
-
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="middleName"
+                    className="text-[#333333] font-medium">
+                    Middle Name
+                  </Label>
+                  <Input
+                    id="middleName"
+                    type="text"
+                    placeholder="Santos"
+                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    {...register('middleName')}
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label
                     htmlFor="lastName"
@@ -232,15 +205,10 @@ export function RegisterScreen({
                   <Input
                     id="lastName"
                     type="text"
-                    placeholder="Doe"
+                    placeholder="Dela Cruz"
                     className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
                     {...register('lastName')}
                   />
-                  {(errors as any).lastName && (
-                    <p className="text-red-500 text-sm">
-                      {(errors as any).lastName.message}
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -262,239 +230,38 @@ export function RegisterScreen({
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-[#333333] font-medium">
-                  Phone Number
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="+63 912 345 6789"
-                  className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                  {...register('phone')}
-                />
-                {(errors as any).phone && (
-                  <p className="text-red-500 text-sm">
-                    {(errors as any).phone.message}
-                  </p>
-                )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="gradeLevel"
+                    className="text-[#333333] font-medium">
+                    Grade Level
+                  </Label>
+                  <Input
+                    id="gradeLevel"
+                    type="text"
+                    placeholder="Grade 6"
+                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    {...register('gradeLevel')}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="learningStyle"
+                    className="text-[#333333] font-medium">
+                    Learning Style (optional)
+                  </Label>
+                  <Input
+                    id="learningStyle"
+                    type="text"
+                    placeholder="visual / auditory / reading_writing / kinesthetic"
+                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    {...register('learningStyle')}
+                  />
+                </div>
               </div>
 
-              {/* Role-specific fields */}
-              {selectedRole === 'osca' && (
-                <>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="department"
-                      className="text-[#333333] font-medium">
-                      Department
-                    </Label>
-                    <Input
-                      id="department"
-                      type="text"
-                      placeholder="Office of Senior Citizens Affairs"
-                      className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                      {...register('department')}
-                    />
-                    {(errors as any).department && (
-                      <p className="text-red-500 text-sm">
-                        {(errors as any).department.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="position"
-                        className="text-[#333333] font-medium">
-                        Position
-                      </Label>
-                      <Input
-                        id="position"
-                        type="text"
-                        placeholder="Superadmin"
-                        className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                        {...register('position')}
-                      />
-                      {(errors as any).position && (
-                        <p className="text-red-500 text-sm">
-                          {(errors as any).position.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="employeeId"
-                        className="text-[#333333] font-medium">
-                        Employee ID
-                      </Label>
-                      <Input
-                        id="employeeId"
-                        type="text"
-                        placeholder="OSCA001"
-                        className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                        {...register('employeeId')}
-                      />
-                      {(errors as any).employeeId && (
-                        <p className="text-red-500 text-sm">
-                          {(errors as any).employeeId.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {selectedRole === 'basca' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="barangay"
-                      className="text-[#333333] font-medium">
-                      Barangay
-                    </Label>
-                    <Input
-                      id="barangay"
-                      type="text"
-                      placeholder="Barangay Name"
-                      className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                      {...register('barangay')}
-                    />
-                    {(errors as any).barangay && (
-                      <p className="text-red-500 text-sm">
-                        {(errors as any).barangay.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="barangayCode"
-                      className="text-[#333333] font-medium">
-                      Barangay Code
-                    </Label>
-                    <Input
-                      id="barangayCode"
-                      type="text"
-                      placeholder="BRGY001"
-                      className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                      {...register('barangayCode')}
-                    />
-                    {(errors as any).barangayCode && (
-                      <p className="text-red-500 text-sm">
-                        {(errors as any).barangayCode.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {selectedRole === 'senior' && (
-                <>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="dateOfBirth"
-                      className="text-[#333333] font-medium">
-                      Date of Birth
-                    </Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                      {...register('dateOfBirth')}
-                    />
-                    {(errors as any).dateOfBirth && (
-                      <p className="text-red-500 text-sm">
-                        {(errors as any).dateOfBirth.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="address"
-                      className="text-[#333333] font-medium">
-                      Address
-                    </Label>
-                    <Input
-                      id="address"
-                      type="text"
-                      placeholder="Complete address"
-                      className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                      {...register('address')}
-                    />
-                    {(errors as any).address && (
-                      <p className="text-red-500 text-sm">
-                        {(errors as any).address.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="emergencyContactName"
-                      className="text-[#333333] font-medium">
-                      Emergency Contact Name
-                    </Label>
-                    <Input
-                      id="emergencyContactName"
-                      type="text"
-                      placeholder="Emergency contact name"
-                      className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                      {...register('emergencyContactName')}
-                    />
-                    {(errors as any).emergencyContactName && (
-                      <p className="text-red-500 text-sm">
-                        {(errors as any).emergencyContactName.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="emergencyContactPhone"
-                        className="text-[#333333] font-medium">
-                        Emergency Contact Phone
-                      </Label>
-                      <Input
-                        id="emergencyContactPhone"
-                        type="tel"
-                        placeholder="+63 912 345 6789"
-                        className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                        {...register('emergencyContactPhone')}
-                      />
-                      {(errors as any).emergencyContactPhone && (
-                        <p className="text-red-500 text-sm">
-                          {(errors as any).emergencyContactPhone.message}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="emergencyContactRelationship"
-                        className="text-[#333333] font-medium">
-                        Relationship
-                      </Label>
-                      <Input
-                        id="emergencyContactRelationship"
-                        type="text"
-                        placeholder="Son/Daughter/Spouse"
-                        className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
-                        {...register('emergencyContactRelationship')}
-                      />
-                      {(errors as any).emergencyContactRelationship && (
-                        <p className="text-red-500 text-sm">
-                          {(errors as any).emergencyContactRelationship.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+              {/* MS schema has only student/teacher roles; no extra fields */}
 
               <div className="space-y-2">
                 <Label

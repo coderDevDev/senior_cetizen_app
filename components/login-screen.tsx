@@ -12,9 +12,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Eye, EyeOff, Shield, Users, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface LoginScreenProps {
-  selectedRole: 'osca' | 'basca' | 'senior';
+  selectedRole: 'student' | 'teacher';
   onBack: () => void;
   onRegister: () => void;
   onForgotPassword: () => void;
@@ -56,63 +57,37 @@ export function LoginScreen({
     });
 
     if (authState.isAuthenticated && authState.user) {
-      // Redirect based on user role
       const userRole = authState.user.role;
-
-      console.log('Redirecting user with role:', userRole);
-
-      switch (userRole) {
-        case 'osca':
-          console.log('Redirecting to OSCA dashboard');
-          router.push('/dashboard/osca');
-          break;
-        case 'basca':
-          console.log('Redirecting to BASCA dashboard');
-          router.push('/dashboard/basca');
-          break;
-        case 'senior':
-          console.log('Redirecting to Senior dashboard');
-          router.push('/dashboard/senior');
-          break;
-        default:
-          console.log('Unknown role, redirecting to main dashboard');
-          router.push('/dashboard');
+      if (userRole === 'teacher' || userRole === 'student') {
+        router.push('/dashboard');
+      } else {
+        router.push('/dashboard');
       }
     }
   }, [authState.isAuthenticated, authState.user, router]);
 
   const roleConfig = {
-    osca: {
+    teacher: {
       icon: Shield,
-      title: 'OSCA Superadmin',
-      subtitle: 'Office of Senior Citizens Affairs',
-      description: 'System administration and management',
+      title: 'Teacher Login',
+      subtitle: 'Educator Portal',
+      description: 'Create lessons, quizzes, and manage classes',
       color: 'text-[#00af8f]',
       bgColor: 'bg-[#00af8f]',
       borderColor: 'border-[#00af8f]',
-      defaultEmail: 'admin@osca.gov.ph'
+      defaultEmail: 'teacher@example.com'
     },
-    basca: {
-      icon: Users,
-      title: 'BASCA Admin',
-      subtitle: 'Barangay Association of Senior Citizens Affairs',
-      description: 'Local barangay management',
-      color: 'text-[#ffd416]',
-      bgColor: 'bg-[#ffd416]',
-      borderColor: 'border-[#ffd416]',
-      defaultEmail: 'admin@basca.gov.ph'
-    },
-    senior: {
+    student: {
       icon: User,
-      title: 'Senior Citizen',
-      subtitle: 'Self-Service Portal',
-      description: 'Personal account access',
+      title: 'Student Login',
+      subtitle: 'Learning Portal',
+      description: 'Access lessons, take quizzes, and submit activities',
       color: 'text-[#00af8f]',
       bgColor: 'bg-[#00af8f]',
       borderColor: 'border-[#00af8f]',
-      defaultEmail: 'senior@example.com'
+      defaultEmail: 'student@example.com'
     }
-  };
+  } as const;
 
   const config = roleConfig[selectedRole];
   const Icon = config.icon;
@@ -166,12 +141,17 @@ export function LoginScreen({
             Back
           </Button>
 
-          <div className="flex items-center justify-center mb-6">
+          {/* <div className="flex items-center justify-center mb-6">
             <div
               className={`w-16 h-16 ${config.bgColor} rounded-2xl flex items-center justify-center shadow-lg`}>
-              <Icon className="w-8 h-8 text-white" />
+              <Image
+                src="https://xieuxyhwjircnbqvfxsd.supabase.co/storage/v1/object/sign/docs/456455332_122108994920407444_6470634652416251609_n-removebg-preview.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wNjAzMzBjNS04ZTY1LTQ0YjQtYjlhMS05M2Y3ZTgwMzk1MjkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJkb2NzLzQ1NjQ1NTMzMl8xMjIxMDg5OTQ5MjA0MDc0NDRfNjQ3MDYzNDY1MjQxNjI1MTYwOV9uLXJlbW92ZWJnLXByZXZpZXcucG5nIiwiaWF0IjoxNzU1MTMxMTgwLCJleHAiOjE3ODY2NjcxODB9.PDZOIIxmxq0K60txHo6Yp88y8fUv0S3GuO2IeuWOF-Q"
+                alt="Logo"
+                width={64}
+                height={64}
+              />
             </div>
-          </div>
+          </div> */}
 
           <h1 className="text-3xl font-bold text-[#333333] mb-2">
             {config.title}

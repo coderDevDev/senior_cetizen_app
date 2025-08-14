@@ -62,13 +62,16 @@ You're seeing a "Database error saving new user" error because the trigger funct
 4. **Verify Tables Created**
    - Go to **Table Editor** in the left sidebar
    - You should see these tables:
-     - `users`
-     - `senior_citizens`
+     - `profiles`
+     - `lessons`
+     - `quizzes`
+     - `quiz_questions`
+     - `quiz_assignees`
+     - `quiz_results`
+     - `activities`
+     - `activity_assignees`
+     - `submissions`
      - `announcements`
-     - `appointments`
-     - `document_requests`
-     - `benefits`
-     - `census_records`
 
 ### Step 3: Configure Authentication
 
@@ -91,13 +94,16 @@ You're seeing a "Database error saving new user" error because the trigger funct
 
 1. Go to **Table Editor** in Supabase dashboard
 2. Verify these tables exist:
-   - `users` (extends auth.users)
-   - `senior_citizens`
+   - `profiles` (extends auth.users)
+   - `lessons`
+   - `quizzes`
+   - `quiz_questions`
+   - `quiz_assignees`
+   - `quiz_results`
+   - `activities`
+   - `activity_assignees`
+   - `submissions`
    - `announcements`
-   - `appointments`
-   - `document_requests`
-   - `benefits`
-   - `census_records`
 
 ### Check Functions and Triggers
 
@@ -109,7 +115,7 @@ You're seeing a "Database error saving new user" error because the trigger funct
 ### Test Registration
 
 1. Start your development server: `pnpm dev`
-2. Try registering a new user with different roles (OSCA, BASCA, Senior)
+2. Try registering a new user with different roles (`student`, `teacher`)
 3. Check that no "Database error saving new user" errors occur
 
 ## 🚨 Troubleshooting
@@ -122,7 +128,7 @@ You're seeing a "Database error saving new user" error because the trigger funct
 2. The improved trigger function handles errors gracefully
 3. The AuthAPI now has fallback mechanisms
 
-### Issue: "Table 'users' does not exist"
+### Issue: "Table 'profiles' does not exist"
 
 **Solution**: Run the `create-tables-fixed.sql` script in SQL Editor
 
@@ -165,27 +171,20 @@ You're seeing a "Database error saving new user" error because the trigger funct
 
 ### Role-Based Access Control
 
-- **OSCA Superadmin**: Full system access, can manage all barangays
-- **BASCA Admin**: Limited to assigned barangay, can register seniors
-- **Senior Citizen**: Self-service access to personal records and requests
+- **Teacher**: Can create and manage lessons, quizzes, activities, and announcements
+- **Student**: Can view assigned lessons/activities and submit work
 
-### Senior Citizen Management
+### Learning Management
 
-- **Comprehensive Records**: Personal info, medical history, benefits
-- **Document Management**: ID photos, certificates, endorsements
-- **Census Tracking**: Active, deceased, and new registrations per barangay
+- **Lessons**: Publish multimedia content tagged by learning style (VARK)
+- **Quizzes**: Pre/post quizzes with multiple question types and scoring
+- **Activities**: Assignments/projects with deadlines and rubric links
+- **Submissions**: Students upload work; teachers grade and give feedback
 
-### Communication System
+### Communication
 
-- **Announcements**: System-wide and barangay-specific announcements
-- **SMS Notifications**: Automatic alerts for important updates
-- **Appointment Scheduling**: BHW and BASCA officer appointments
-
-### Benefits and Services
-
-- **Benefit Tracking**: Medical assistance, social services
-- **Document Requests**: OSCA ID, medical certificates, endorsements
-- **Status Monitoring**: Real-time updates on requests and applications
+- **Announcements**: Publish updates targeted by role; schedule expiry
+- **Visibility Controls**: Students see published items and their assignments
 
 ## 📞 Getting Help
 
@@ -209,22 +208,23 @@ If you're still having issues:
 
 If you need to start fresh:
 
-1. **Drop all tables** (in SQL Editor):
+1. **Drop all learning tables and types** (in SQL Editor):
 
    ```sql
-   DROP TABLE IF EXISTS senior_citizens CASCADE;
-   DROP TABLE IF EXISTS announcements CASCADE;
-   DROP TABLE IF EXISTS appointments CASCADE;
-   DROP TABLE IF EXISTS document_requests CASCADE;
-   DROP TABLE IF EXISTS benefits CASCADE;
-   DROP TABLE IF EXISTS census_records CASCADE;
-   DROP TABLE IF EXISTS users CASCADE;
+   DROP TABLE IF EXISTS public.submissions CASCADE;
+   DROP TABLE IF EXISTS public.activity_assignees CASCADE;
+   DROP TABLE IF EXISTS public.activities CASCADE;
+   DROP TABLE IF EXISTS public.quiz_results CASCADE;
+   DROP TABLE IF EXISTS public.quiz_assignees CASCADE;
+   DROP TABLE IF EXISTS public.quiz_questions CASCADE;
+   DROP TABLE IF EXISTS public.quizzes CASCADE;
+   DROP TABLE IF EXISTS public.lessons CASCADE;
+   DROP TABLE IF EXISTS public.announcements CASCADE;
+   DROP TABLE IF EXISTS public.profiles CASCADE;
    DROP TYPE IF EXISTS user_role CASCADE;
-   DROP TYPE IF EXISTS senior_status CASCADE;
-   DROP TYPE IF EXISTS appointment_status CASCADE;
-   DROP TYPE IF EXISTS document_request_status CASCADE;
-   DROP TYPE IF EXISTS benefit_status CASCADE;
-   DROP TYPE IF EXISTS announcement_type CASCADE;
+   DROP TYPE IF EXISTS learning_style CASCADE;
+   DROP TYPE IF EXISTS quiz_type CASCADE;
+   DROP TYPE IF EXISTS question_type CASCADE;
    ```
 
 2. **Re-run the fixed setup script**:
@@ -236,12 +236,12 @@ If you need to start fresh:
 After following these steps, you should see:
 
 - ✅ No "Database error saving new user" errors
-- ✅ Registration form submits successfully for all roles (OSCA, BASCA, Senior)
+- ✅ Registration works for both `student` and `teacher` roles
 - ✅ Success message appears after registration
 - ✅ Email verification email is sent
 - ✅ User can log in after email verification
 - ✅ Role-based dashboards load correctly
-- ✅ Senior citizen records can be created and managed
+- ✅ Teachers can create lessons/quizzes/activities and students can access assignments
 
 ---
 

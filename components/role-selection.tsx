@@ -15,29 +15,27 @@ import {
 import Image from 'next/image';
 
 interface RoleSelectionProps {
-  onRoleSelect: (role: 'osca' | 'basca' | 'senior') => void;
+  onRoleSelect: (role: 'student' | 'teacher') => void;
   onBack: () => void;
 }
 
 export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
   const [selectedRole, setSelectedRole] = useState<
-    'osca' | 'basca' | 'senior' | null
+    'student' | 'teacher' | null
   >(null);
 
   const roles = [
     {
-      id: 'osca' as const,
-      title: 'OSCA Superadmin',
-      subtitle: 'Office of Senior Citizens Affairs',
-      description:
-        'Full system control and management of senior citizen records across all barangays',
+      id: 'teacher' as const,
+      title: 'Teacher',
+      subtitle: 'Educator Portal',
+      description: 'Create lessons, quizzes, and manage classes',
       icon: Shield,
       features: [
-        'Manage all senior citizen records',
-        'Generate comprehensive reports',
-        'Post announcements and alerts',
-        'Monitor census data',
-        'System administration'
+        'Create and publish lessons',
+        'Build and assign quizzes',
+        'Manage classes and assignments',
+        'View and grade submissions'
       ],
       gradient: 'from-[#00af8f] to-[#00af90]',
       bgGradient: 'from-[#feffff] to-[#ffffff]',
@@ -45,37 +43,15 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
       glowColor: 'shadow-[#00af8f]/25'
     },
     {
-      id: 'basca' as const,
-      title: 'BASCA Admin',
-      subtitle: 'Barangay Association of Senior Citizens Affairs',
-      description:
-        'Manage senior citizen records and services within assigned barangay',
-      icon: Users,
-      features: [
-        'Register senior citizens',
-        'Manage local records',
-        'Coordinate with BHW',
-        'Process benefit requests',
-        'Barangay-level reports'
-      ],
-      gradient: 'from-[#ffd416] to-[#ffd317]',
-      bgGradient: 'from-[#feffff] to-[#ffffff]',
-      iconColor: 'text-[#ffd416]',
-      glowColor: 'shadow-[#ffd416]/25'
-    },
-    {
-      id: 'senior' as const,
-      title: 'Senior Citizen',
-      subtitle: 'Self-Service Portal',
-      description:
-        'Access personal records, request documents, and schedule appointments',
+      id: 'student' as const,
+      title: 'Student',
+      subtitle: 'Learning Portal',
+      description: 'Access lessons, take quizzes, and submit activities',
       icon: User,
       features: [
-        'View personal records',
-        'Request official documents',
-        'Schedule appointments',
-        'Check announcements',
-        'Apply for benefits'
+        'View lessons by learning style',
+        'Take pre/post quizzes',
+        'Submit activities and track feedback'
       ],
       gradient: 'from-[#00af8f] to-[#00af90]',
       bgGradient: 'from-[#feffff] to-[#ffffff]',
@@ -85,7 +61,7 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col p-6 lg:p-8 relative overflow-hidden bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
+    <div className="h-screen flex flex-col p-4 lg:p-8 relative overflow-x-hidden bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
       {/* Background Decorations */}
       <div className="absolute inset-0">
         <div className="absolute top-10 left-10 w-32 h-32 bg-[#00af8f]/20 rounded-full blur-2xl" />
@@ -97,7 +73,7 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
 
       <div className="flex-1 flex flex-col relative z-10 max-w-7xl mx-auto w-full">
         {/* Modern Navbar Header */}
-        <nav className="flex items-center justify-between p-4 lg:p-6 mb-8 lg:mb-12">
+        <nav className="flex items-center justify-between p-4 lg:p-6 mb-2 lg:mb-8">
           {/* <Button
             variant="ghost"
             onClick={onBack}
@@ -110,15 +86,15 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
               className="bg-none rounded-xl flex items-center 
             justify-center">
               <Image
-                src="https://mpqicxgtlmnwalwjmaov.supabase.co/storage/v1/object/sign/senior/f57b19189e96ff73ad61a12301a7ab147cdfe857.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wYzUzNjYxYi1hZjkzLTQ1MGUtYWZkOS00NDg2MzM4NmJiZDQiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzZW5pb3IvZjU3YjE5MTg5ZTk2ZmY3M2FkNjFhMTIzMDFhN2FiMTQ3Y2RmZTg1Ny5wbmciLCJpYXQiOjE3NTQ2NDM4NjMsImV4cCI6MTc4NjE3OTg2M30.iC2Ik1M4KZwvZuHiRHU1FeBNX0jRzHCkmqCow-i5Syw"
+                src="https://xieuxyhwjircnbqvfxsd.supabase.co/storage/v1/object/sign/docs/456455332_122108994920407444_6470634652416251609_n-removebg-preview.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8wNjAzMzBjNS04ZTY1LTQ0YjQtYjlhMS05M2Y3ZTgwMzk1MjkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJkb2NzLzQ1NjQ1NTMzMl8xMjIxMDg5OTQ5MjA0MDc0NDRfNjQ3MDYzNDY1MjQxNjI1MTYwOV9uLXJlbW92ZWJnLXByZXZpZXcucG5nIiwiaWF0IjoxNzU1MTMxMTgwLCJleHAiOjE3ODY2NjcxODB9.PDZOIIxmxq0K60txHo6Yp88y8fUv0S3GuO2IeuWOF-Q"
                 alt="Logo"
-                width={80}
-                height={80}
+                width={64}
+                height={64}
               />
             </div>
             <div className="hidden sm:block">
               <h2 className="text-lg font-bold text-[#333333]">
-                Senior Citizen System
+                Learning Management System
               </h2>
             </div>
           </div>
@@ -126,16 +102,16 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
         </nav>
 
         {/* Hero Section */}
-        <div className="text-center mb-8 lg:mb-12">
-          <h1 className="text-3xl lg:text-5xl font-bold text-[#333333] mb-4">
-            <span className="block bg-gradient-to-r from-[#00af8f] to-[#ffd416] bg-clip-text text-transparent">
-              Choose Your Role
+        <div className="text-center mb-0 lg:mb-8">
+          <h1 className="text-2xl lg:text-5xl font-bold text-[#333333] mb-3 lg:mb-4">
+            <span className="block bg-gradient-to-r from-[#00af8f] to-[#00af90] bg-clip-text text-transparent">
+              Select Your Role
             </span>
           </h1>
         </div>
 
         {/* Role Cards - Mobile Layout */}
-        <div className="flex-1 space-y-4 mb-8 lg:hidden">
+        <div className="flex-1 space-y-2 lg:hidden">
           {roles.map(role => {
             const Icon = role.icon;
             const isSelected = selectedRole === role.id;
@@ -143,23 +119,32 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
             return (
               <Card
                 key={role.id}
-                className={`group cursor-pointer transition-all duration-300 active:scale-95 ${
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                className={`group cursor-pointer transition-all duration-300 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00af8f] focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   isSelected
-                    ? `bg-gradient-to-r ${role.gradient} border-0 shadow-lg scale-[1.02]`
+                    ? `bg-gradient-to-r ${role.gradient} border-0 shadow-lg scale-[1.02] ring-2 ring-[#00af8f]`
                     : 'bg-white border border-[#E0DDD8] hover:border-[#00af8f] hover:shadow-md'
                 }`}
-                onClick={() => setSelectedRole(role.id)}>
-                <CardContent className="p-6">
+                onClick={() => setSelectedRole(role.id)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedRole(role.id);
+                  }
+                }}>
+                <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="relative flex-shrink-0">
                       <div
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                           isSelected
                             ? 'bg-white/20 backdrop-blur-sm'
                             : 'bg-[#feffff]'
                         }`}>
                         <Icon
-                          className={`w-7 h-7 transition-all duration-300 ${
+                          className={`w-6 h-6 transition-all duration-300 ${
                             isSelected ? 'text-white' : role.iconColor
                           }`}
                         />
@@ -173,11 +158,17 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
 
                     <div className="flex-1 min-w-0">
                       <h3
-                        className={`text-lg font-semibold transition-all duration-300 ${
+                        className={`text-base font-semibold transition-all duration-300 ${
                           isSelected ? 'text-white' : 'text-[#333333]'
                         }`}>
                         {role.title}
                       </h3>
+                      <p
+                        className={`mt-0.5 text-xs ${
+                          isSelected ? 'text-white/90' : 'text-[#666666]'
+                        } line-clamp-1`}>
+                        {role.description}
+                      </p>
                     </div>
 
                     <div className="flex-shrink-0">
@@ -202,7 +193,7 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
         </div>
 
         {/* Role Cards - Desktop Layout */}
-        <div className="hidden lg:grid grid-cols-3 gap-8 mb-12">
+        <div className="hidden lg:grid grid-cols-2 gap-8 mb-8 max-w-4xl mx-auto">
           {roles.map(role => {
             const Icon = role.icon;
             const isSelected = selectedRole === role.id;
@@ -210,15 +201,15 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
             return (
               <Card
                 key={role.id}
-                className={`group cursor-pointer transition-all duration-500 hover:scale-105 hover:shadow-2xl ${
+                className={`group cursor-pointer w-full max-w-[520px] mx-auto transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl ${
                   isSelected
                     ? `bg-gradient-to-br ${role.bgGradient} border-2 border-transparent bg-clip-padding shadow-2xl ${role.glowColor} scale-105`
                     : 'bg-white/90 backdrop-blur-sm border border-[#E0DDD8] hover:border-[#00af8f] hover:shadow-xl'
                 }`}
                 onClick={() => setSelectedRole(role.id)}>
-                <CardContent className="p-4 h-full flex flex-col">
+                <CardContent className="p-6 h-full flex flex-col">
                   {/* Icon and Title Section */}
-                  <div className="text-center mb-8">
+                  <div className="text-center mb-6">
                     <div className="relative inline-block mb-6">
                       {isSelected && (
                         <div
@@ -243,34 +234,29 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
                         </div>
                       )}
                     </div>
-                    <h3 className="text-3xl font-bold text-[#333333] mb-3">
+                    <h3 className="text-2xl font-bold text-[#333333] mb-2">
                       {role.title}
                     </h3>
-                    {/* <p className="text-xl font-medium text-[#666666] mb-4">
-                      {role.subtitle}
-                    </p> */}
-                    <p className="text-[#333333] leading-relaxed text-lg">
+                    <p className="text-[#333333] leading-relaxed text-sm">
                       {role.description}
                     </p>
                   </div>
 
                   {/* Features Section */}
-                  {/* <div className="flex-1 space-y-4">
-                    <h4 className="text-lg font-semibold text-[#333333] mb-3">
+                  <div className="flex-1 space-y-2">
+                    <h4 className="text-sm font-semibold text-[#333333]">
                       Key Features
                     </h4>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2">
                       {role.features.map((feature, index) => (
                         <div key={index} className="flex items-center gap-3">
-                          <div
-                            className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                              isSelected
-                                ? `bg-gradient-to-r ${role.gradient}`
-                                : 'bg-[#ffd416]'
+                          <span
+                            className={`inline-block w-2 h-2 rounded-full ${
+                              isSelected ? 'bg-[#00af8f]' : 'bg-[#E0DDD8]'
                             }`}
                           />
                           <span
-                            className={`text-sm transition-all duration-300 ${
+                            className={`text-xs ${
                               isSelected
                                 ? 'text-[#333333] font-medium'
                                 : 'text-[#666666]'
@@ -280,7 +266,7 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
                         </div>
                       ))}
                     </div>
-                  </div> */}
+                  </div>
 
                   {/* Selection Indicator */}
                   {isSelected && (
@@ -298,7 +284,7 @@ export function RoleSelection({ onRoleSelect, onBack }: RoleSelectionProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-4 pb-safe lg:pb-8 lg:justify-center lg:gap-8">
+        <div className="mt-auto flex gap-4 pt-2 pb-4 lg:pb-8 lg:justify-center lg:gap-8">
           {/* <Button
             variant="outline"
             onClick={onBack}

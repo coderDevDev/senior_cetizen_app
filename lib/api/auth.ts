@@ -31,27 +31,13 @@ export class AuthAPI {
         password: data.password,
         options: {
           data: {
+            full_name: data.fullName,
             first_name: data.firstName,
+            middle_name: data.middleName,
             last_name: data.lastName,
-            phone: data.phone,
             role: data.role,
-            // Role-specific metadata
-            ...(data.role === 'osca' && {
-              department: data.department,
-              position: data.position,
-              employee_id: data.employeeId
-            }),
-            ...(data.role === 'basca' && {
-              barangay: data.barangay,
-              barangay_code: data.barangayCode
-            }),
-            ...(data.role === 'senior' && {
-              date_of_birth: data.dateOfBirth,
-              address: data.address,
-              emergency_contact_name: data.emergencyContactName,
-              emergency_contact_phone: data.emergencyContactPhone,
-              emergency_contact_relationship: data.emergencyContactRelationship
-            })
+            learning_style: data.learningStyle,
+            grade_level: data.gradeLevel
           }
         }
       });
@@ -70,26 +56,28 @@ export class AuthAPI {
       // Wait a moment for the trigger to execute
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Check if user record was created by the trigger using admin client
+      // Check if profile was created by the trigger using admin client
       const { data: userData, error: userCheckError } = await supabaseAdmin
-        .from('users')
+        .from('profiles')
         .select('id')
         .eq('id', authData.user.id)
         .single();
 
       if (userCheckError || !userData) {
         // If trigger failed, manually create the user record using admin client
-        console.log('Trigger failed, manually creating user record');
+        console.log('Trigger failed, manually creating profile record');
         const { error: insertError } = await supabaseAdmin
-          .from('users')
+          .from('profiles')
           .insert({
             id: authData.user.id,
             email: data.email,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            phone: data.phone,
+            first_name: data.firstName || null,
+            middle_name: data.middleName || null,
+            last_name: data.lastName || null,
             role: data.role,
-            is_verified: false,
+            learning_style: data.learningStyle || null,
+            grade_level: data.gradeLevel || null,
+            onboarding_completed: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           });
@@ -100,67 +88,9 @@ export class AuthAPI {
         }
       }
 
-      // Update the user record with role-specific data using admin client
-      const updateData: any = {};
+      // No extra update needed; metadata handled by trigger
 
-      if (data.role === 'osca') {
-        updateData.department = data.department || null;
-        updateData.position = data.position || null;
-        updateData.employee_id = data.employeeId || null;
-      } else if (data.role === 'basca') {
-        updateData.barangay = data.barangay || null;
-        updateData.barangay_code = data.barangayCode || null;
-      } else if (data.role === 'senior') {
-        updateData.date_of_birth = data.dateOfBirth || null;
-        updateData.address = data.address || null;
-        updateData.emergency_contact_name = data.emergencyContactName || null;
-        updateData.emergency_contact_phone = data.emergencyContactPhone || null;
-        updateData.emergency_contact_relationship =
-          data.emergencyContactRelationship || null;
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        const { error: updateError } = await supabaseAdmin
-          .from('users')
-          .update(updateData)
-          .eq('id', authData.user.id);
-
-        if (updateError) {
-          console.error('Profile update error:', updateError);
-          // Don't throw error here as the user was created successfully
-          // The additional data can be updated later
-        }
-      }
-
-      // If registering as a senior citizen, create a senior_citizens record
-      if (data.role === 'senior' && data.barangay && data.dateOfBirth) {
-        try {
-          const { error: seniorError } = await supabaseAdmin
-            .from('senior_citizens')
-            .insert({
-              user_id: authData.user.id,
-              barangay: data.barangay,
-              barangay_code: data.barangayCode || '',
-              date_of_birth: data.dateOfBirth,
-              gender: 'other', // Default value, can be updated later
-              address: data.address || '',
-              emergency_contact_name: data.emergencyContactName,
-              emergency_contact_phone: data.emergencyContactPhone,
-              emergency_contact_relationship: data.emergencyContactRelationship,
-              created_by: authData.user.id
-            });
-
-          if (seniorError) {
-            console.error(
-              'Senior citizen record creation failed:',
-              seniorError
-            );
-            // Don't throw error here as the user was created successfully
-          }
-        } catch (error) {
-          console.error('Error creating senior citizen record:', error);
-        }
-      }
+      // No additional per-role records in the MS schema
 
       return {
         success: true,
@@ -192,7 +122,7 @@ export class AuthAPI {
 
       // Get user profile data
       const { data: userData, error: userError } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', authData.user.id)
         .single();
@@ -209,47 +139,24 @@ export class AuthAPI {
       }
 
       // Update last login
-      if (userData) {
-        await supabase
-          .from('users')
-          .update({
-            last_login: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', authData.user.id);
-      }
+      // MS schema: no last_login field on profiles; skipping
 
       // Convert database user data to frontend format
       const user = userData
         ? {
             id: userData.id,
             email: userData.email,
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            phone: userData.phone,
             role: userData.role,
-            avatar: userData.avatar_url,
-            isVerified: userData.is_verified,
+            firstName: userData.first_name ?? undefined,
+            middleName: userData.middle_name ?? undefined,
+            lastName: userData.last_name ?? undefined,
+            fullName: userData.full_name ?? undefined,
+            profilePhoto: userData.profile_photo ?? undefined,
+            learningStyle: userData.learning_style ?? undefined,
+            gradeLevel: userData.grade_level ?? undefined,
+            onboardingCompleted: userData.onboarding_completed ?? undefined,
             createdAt: userData.created_at,
-            lastLogin: userData.last_login,
-            // OSCA specific fields
-            department: userData.department,
-            position: userData.position,
-            employeeId: userData.employee_id,
-            // BASCA specific fields
-            barangay: userData.barangay,
-            barangayCode: userData.barangay_code,
-            // Senior specific fields
-            dateOfBirth: userData.date_of_birth,
-            address: userData.address,
-            oscaId: userData.osca_id,
-            emergencyContact: userData.emergency_contact_name
-              ? {
-                  name: userData.emergency_contact_name,
-                  phone: userData.emergency_contact_phone || '',
-                  relationship: userData.emergency_contact_relationship || ''
-                }
-              : undefined
+            updatedAt: userData.updated_at
           }
         : null;
 
@@ -296,7 +203,7 @@ export class AuthAPI {
       }
 
       const { data: userData, error: userError } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -315,32 +222,17 @@ export class AuthAPI {
         ? {
             id: userData.id,
             email: userData.email,
-            firstName: userData.first_name,
-            lastName: userData.last_name,
-            phone: userData.phone,
             role: userData.role,
-            avatar: userData.avatar_url,
-            isVerified: userData.is_verified,
+            firstName: userData.first_name ?? undefined,
+            middleName: userData.middle_name ?? undefined,
+            lastName: userData.last_name ?? undefined,
+            fullName: userData.full_name ?? undefined,
+            profilePhoto: userData.profile_photo ?? undefined,
+            learningStyle: userData.learning_style ?? undefined,
+            gradeLevel: userData.grade_level ?? undefined,
+            onboardingCompleted: userData.onboarding_completed ?? undefined,
             createdAt: userData.created_at,
-            lastLogin: userData.last_login,
-            // OSCA specific fields
-            department: userData.department,
-            position: userData.position,
-            employeeId: userData.employee_id,
-            // BASCA specific fields
-            barangay: userData.barangay,
-            barangayCode: userData.barangay_code,
-            // Senior specific fields
-            dateOfBirth: userData.date_of_birth,
-            address: userData.address,
-            oscaId: userData.osca_id,
-            emergencyContact: userData.emergency_contact_name
-              ? {
-                  name: userData.emergency_contact_name,
-                  phone: userData.emergency_contact_phone || '',
-                  relationship: userData.emergency_contact_relationship || ''
-                }
-              : undefined
+            updatedAt: userData.updated_at
           }
         : null;
 

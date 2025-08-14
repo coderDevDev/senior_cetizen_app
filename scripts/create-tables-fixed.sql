@@ -1,566 +1,685 @@
--- Enable RLS
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
+-- Learning Management Database Schema (Supabase)
 
--- Create custom types
-CREATE TYPE user_role AS ENUM ('osca', 'basca', 'senior');
-CREATE TYPE senior_status AS ENUM ('active', 'deceased', 'inactive');
-CREATE TYPE appointment_status AS ENUM ('pending', 'approved', 'completed', 'cancelled');
-CREATE TYPE document_request_status AS ENUM ('pending', 'approved', 'rejected', 'completed');
-CREATE TYPE benefit_status AS ENUM ('active', 'expired', 'suspended');
-CREATE TYPE announcement_type AS ENUM ('general', 'emergency', 'benefit', 'birthday');
-CREATE TYPE housing_condition AS ENUM ('owned', 'rented', 'with_family', 'institution', 'other');
-CREATE TYPE physical_health_condition AS ENUM ('excellent', 'good', 'fair', 'poor', 'critical');
-CREATE TYPE living_condition AS ENUM ('independent', 'with_family', 'with_caregiver', 'institution', 'other');
+DROP TABLE IF EXISTS public.submissions CASCADE;
+DROP TABLE IF EXISTS public.activity_class_assignees CASCADE;
+DROP TABLE IF EXISTS public.quiz_class_assignees CASCADE;
+DROP TABLE IF EXISTS public.activity_assignees CASCADE;
+DROP TABLE IF EXISTS public.activities CASCADE;
+DROP TABLE IF EXISTS public.quiz_results CASCADE;
+DROP TABLE IF EXISTS public.quiz_assignees CASCADE;
+DROP TABLE IF EXISTS public.quiz_questions CASCADE;
+DROP TABLE IF EXISTS public.quizzes CASCADE;
+DROP TABLE IF EXISTS public.lesson_progress CASCADE;
+DROP TABLE IF EXISTS public.lessons CASCADE;
+DROP TABLE IF EXISTS public.learning_style_assessments CASCADE;
+DROP TABLE IF EXISTS public.class_students CASCADE;
+DROP TABLE IF EXISTS public.classes CASCADE;
+DROP TABLE IF EXISTS public.announcements CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
 
--- Create users table (extends Supabase auth.users)
-CREATE TABLE public.users (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+
+
+DROP TYPE IF EXISTS user_role CASCADE;
+DROP TYPE IF EXISTS senior_status CASCADE;
+DROP TYPE IF EXISTS appointment_status CASCADE;
+DROP TYPE IF EXISTS document_request_status CASCADE;
+DROP TYPE IF EXISTS benefit_status CASCADE;
+DROP TYPE IF EXISTS announcement_type CASCADE;
+DROP TYPE IF EXISTS housing_condition CASCADE;
+DROP TYPE IF EXISTS physical_health_condition CASCADE;
+DROP TYPE IF EXISTS living_condition CASCADE;
+DROP TYPE IF EXISTS learning_style CASCADE;
+DROP TYPE IF EXISTS quiz_type CASCADE;
+DROP TYPE IF EXISTS question_type CASCADE;
+DROP TYPE IF EXISTS progress_status CASCADE;
+
+-- Create custom types for Learning Module
+CREATE TYPE user_role AS ENUM ('student', 'teacher');
+CREATE TYPE learning_style AS ENUM ('visual', 'auditory', 'reading_writing', 'kinesthetic');
+CREATE TYPE quiz_type AS ENUM ('pre', 'post');
+CREATE TYPE question_type AS ENUM ('multiple_choice', 'true_false', 'matching', 'short_answer');
+CREATE TYPE progress_status AS ENUM ('not_started', 'in_progress', 'completed');
+
+-- Profiles table (extends Supabase auth.users)
+CREATE TABLE public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
-  first_name TEXT NOT NULL,
-  last_name TEXT NOT NULL,
-  phone TEXT NOT NULL,
+  first_name TEXT,
+  middle_name TEXT,
+  last_name TEXT,
+  full_name TEXT,
   role user_role NOT NULL,
-  avatar_url TEXT,
-  is_verified BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  last_login TIMESTAMP WITH TIME ZONE,
-  -- OSCA specific fields
-  department TEXT,
-  position TEXT,
-  employee_id TEXT,
-  -- BASCA specific fields
-  barangay TEXT,
-  barangay_code TEXT,
-  -- Senior specific fields
-  date_of_birth DATE,
-  address TEXT,
-  osca_id TEXT,
-  emergency_contact_name TEXT,
-  emergency_contact_phone TEXT,
-  emergency_contact_relationship TEXT
-);
-
--- Create senior_citizens table
-CREATE TABLE public.senior_citizens (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  barangay TEXT NOT NULL,
-  barangay_code TEXT NOT NULL,
-  date_of_birth DATE NOT NULL,
-  gender TEXT NOT NULL CHECK (gender IN ('male', 'female', 'other')),
-  address TEXT NOT NULL,
-  contact_person TEXT,
-  contact_phone TEXT,
-  contact_relationship TEXT,
-  medical_conditions TEXT[] DEFAULT '{}',
-  medications TEXT[] DEFAULT '{}',
-  emergency_contact_name TEXT,
-  emergency_contact_phone TEXT,
-  emergency_contact_relationship TEXT,
-  osca_id TEXT UNIQUE,
-  senior_id_photo TEXT,
-  documents TEXT[] DEFAULT '{}',
-  status senior_status DEFAULT 'active',
-  registration_date DATE DEFAULT CURRENT_DATE,
-  last_medical_checkup DATE,
-  notes TEXT,
-  -- New fields
-  housing_condition housing_condition DEFAULT 'owned',
-  physical_health_condition physical_health_condition DEFAULT 'good',
-  monthly_income DECIMAL(10,2) DEFAULT 0,
-  monthly_pension DECIMAL(10,2) DEFAULT 0,
-  living_condition living_condition DEFAULT 'independent',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_by UUID REFERENCES public.users(id),
-  updated_by UUID REFERENCES public.users(id)
-);
-
--- Create beneficiaries table
-CREATE TABLE public.beneficiaries (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  senior_citizen_id UUID REFERENCES public.senior_citizens(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  relationship TEXT NOT NULL,
-  date_of_birth DATE NOT NULL,
-  gender TEXT NOT NULL CHECK (gender IN ('male', 'female', 'other')),
-  address TEXT,
-  contact_phone TEXT,
-  occupation TEXT,
-  monthly_income DECIMAL(10,2) DEFAULT 0,
-  is_dependent BOOLEAN DEFAULT FALSE,
+  grade_level TEXT,
+  profile_photo TEXT,
+  learning_style learning_style,
+  onboarding_completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create announcements table
+-- Maintain full_name from parts
+CREATE OR REPLACE FUNCTION public.set_profile_full_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.full_name := regexp_replace(
+    trim(both ' ' from coalesce(NEW.first_name,'') || ' ' || coalesce(NEW.middle_name,'') || ' ' || coalesce(NEW.last_name,'')),
+    '\\s+', ' ', 'g'
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_profiles_full_name_before_ins
+  BEFORE INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.set_profile_full_name();
+
+CREATE TRIGGER set_profiles_full_name_before_upd
+  BEFORE UPDATE OF first_name, middle_name, last_name ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.set_profile_full_name();
+
+-- Lessons table
+CREATE TABLE public.lessons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  content_url TEXT NOT NULL,
+  subject TEXT,
+  grade_level TEXT,
+  vark_tag learning_style,
+  resource_type TEXT, -- e.g., video, document, slideshow
+  is_published BOOLEAN DEFAULT FALSE,
+  created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Classes table
+CREATE TABLE public.classes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  subject TEXT,
+  grade_level TEXT,
+  created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Class enrollments
+CREATE TABLE public.class_students (
+  class_id UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (class_id, student_id)
+);
+
+-- Quizzes table
+CREATE TABLE public.quizzes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  type quiz_type NOT NULL,
+  is_published BOOLEAN DEFAULT FALSE,
+  created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Quiz questions table
+CREATE TABLE public.quiz_questions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quiz_id UUID NOT NULL REFERENCES public.quizzes(id) ON DELETE CASCADE,
+  question TEXT NOT NULL,
+  question_type question_type NOT NULL,
+  options JSONB, -- for MCQ/matching
+  correct_answer JSONB, -- flexible for various types
+  points INTEGER DEFAULT 1,
+  position INTEGER DEFAULT 1,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Quiz assignees (student-level assignment)
+CREATE TABLE public.quiz_assignees (
+  quiz_id UUID NOT NULL REFERENCES public.quizzes(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (quiz_id, student_id)
+);
+
+-- Quiz class assignees (class-level assignment)
+CREATE TABLE public.quiz_class_assignees (
+  quiz_id UUID NOT NULL REFERENCES public.quizzes(id) ON DELETE CASCADE,
+  class_id UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (quiz_id, class_id)
+);
+
+-- Quiz results (per attempt)
+CREATE TABLE public.quiz_results (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quiz_id UUID NOT NULL REFERENCES public.quizzes(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  score DECIMAL(10,2) NOT NULL,
+  total_points INTEGER NOT NULL,
+  responses JSONB, -- captured answers
+  attempt_number INTEGER DEFAULT 1,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (quiz_id, student_id, attempt_number)
+);
+
+-- Activities (assignments/projects)
+CREATE TABLE public.activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  rubric_url TEXT,
+  deadline TIMESTAMP WITH TIME ZONE,
+  grading_mode TEXT, -- e.g., points, rubric
+  is_published BOOLEAN DEFAULT FALSE,
+  assigned_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Activity assignees (student-level assignment)
+CREATE TABLE public.activity_assignees (
+  activity_id UUID NOT NULL REFERENCES public.activities(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (activity_id, student_id)
+);
+
+-- Activity class assignees (class-level assignment)
+CREATE TABLE public.activity_class_assignees (
+  activity_id UUID NOT NULL REFERENCES public.activities(id) ON DELETE CASCADE,
+  class_id UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (activity_id, class_id)
+);
+
+-- Submissions for activities
+CREATE TABLE public.submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_id UUID NOT NULL REFERENCES public.activities(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  file_url TEXT NOT NULL,
+  submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  score DECIMAL(10,2),
+  feedback TEXT,
+  graded_at TIMESTAMP WITH TIME ZONE,
+  graded_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (activity_id, student_id)
+);
+
+-- Announcements
 CREATE TABLE public.announcements (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   content TEXT NOT NULL,
-  type announcement_type DEFAULT 'general',
-  target_barangay TEXT, -- NULL for system-wide announcements
+  target_role user_role, -- NULL = everyone
+  target_class_id UUID REFERENCES public.classes(id) ON DELETE CASCADE,
+  target_student_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   is_urgent BOOLEAN DEFAULT FALSE,
+  is_published BOOLEAN DEFAULT TRUE,
   expires_at TIMESTAMP WITH TIME ZONE,
-  sms_sent BOOLEAN DEFAULT FALSE,
-  created_by UUID REFERENCES public.users(id) NOT NULL,
+  created_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create appointments table
-CREATE TABLE public.appointments (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  senior_citizen_id UUID REFERENCES public.senior_citizens(id) ON DELETE CASCADE NOT NULL,
-  appointment_type TEXT NOT NULL, -- 'bhw', 'basca', 'medical'
-  appointment_date DATE NOT NULL,
-  appointment_time TIME NOT NULL,
-  purpose TEXT NOT NULL,
-  status appointment_status DEFAULT 'pending',
-  notes TEXT,
-  created_by UUID REFERENCES public.users(id) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Indexes
+CREATE INDEX idx_profiles_role ON public.profiles(role);
+CREATE INDEX idx_profiles_learning_style ON public.profiles(learning_style);
 
--- Create document_requests table
-CREATE TABLE public.document_requests (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  senior_citizen_id UUID REFERENCES public.senior_citizens(id) ON DELETE CASCADE NOT NULL,
-  document_type TEXT NOT NULL, -- 'osca_id', 'medical_certificate', 'endorsement'
-  purpose TEXT NOT NULL,
-  status document_request_status DEFAULT 'pending',
-  requested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  processed_at TIMESTAMP WITH TIME ZONE,
-  processed_by UUID REFERENCES public.users(id),
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE INDEX idx_classes_created_by ON public.classes(created_by);
+CREATE INDEX idx_class_students_student_id ON public.class_students(student_id);
 
--- Create benefits table
-CREATE TABLE public.benefits (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  senior_citizen_id UUID REFERENCES public.senior_citizens(id) ON DELETE CASCADE NOT NULL,
-  benefit_type TEXT NOT NULL, -- 'medical', 'social', 'financial', 'transportation'
-  benefit_name TEXT NOT NULL,
-  description TEXT,
-  amount DECIMAL(10,2),
-  status benefit_status DEFAULT 'active',
-  start_date DATE NOT NULL,
-  end_date DATE,
-  approved_by UUID REFERENCES public.users(id),
-  approved_at TIMESTAMP WITH TIME ZONE,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE INDEX idx_lessons_created_by ON public.lessons(created_by);
+CREATE INDEX idx_lessons_published ON public.lessons(is_published);
+CREATE INDEX idx_lessons_vark_tag ON public.lessons(vark_tag);
 
--- Create census_records table
-CREATE TABLE public.census_records (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  barangay TEXT NOT NULL,
-  barangay_code TEXT NOT NULL,
-  year INTEGER NOT NULL,
-  month INTEGER NOT NULL,
-  total_seniors INTEGER DEFAULT 0,
-  active_seniors INTEGER DEFAULT 0,
-  deceased_seniors INTEGER DEFAULT 0,
-  new_registrations INTEGER DEFAULT 0,
-  male_count INTEGER DEFAULT 0,
-  female_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(barangay, year, month)
-);
+CREATE INDEX idx_quizzes_created_by ON public.quizzes(created_by);
+CREATE INDEX idx_quiz_assignees_student_id ON public.quiz_assignees(student_id);
+CREATE INDEX idx_quiz_class_assignees_class_id ON public.quiz_class_assignees(class_id);
+CREATE INDEX idx_quiz_results_quiz_student ON public.quiz_results(quiz_id, student_id);
 
--- Create indexes for better performance
-CREATE INDEX idx_users_email ON public.users(email);
-CREATE INDEX idx_users_role ON public.users(role);
-CREATE INDEX idx_users_barangay ON public.users(barangay);
-CREATE INDEX idx_senior_citizens_user_id ON public.senior_citizens(user_id);
-CREATE INDEX idx_senior_citizens_barangay ON public.senior_citizens(barangay);
-CREATE INDEX idx_senior_citizens_status ON public.senior_citizens(status);
-CREATE INDEX idx_senior_citizens_osca_id ON public.senior_citizens(osca_id);
-CREATE INDEX idx_announcements_type ON public.announcements(type);
-CREATE INDEX idx_announcements_target_barangay ON public.announcements(target_barangay);
-CREATE INDEX idx_announcements_created_at ON public.announcements(created_at);
-CREATE INDEX idx_appointments_senior_citizen_id ON public.appointments(senior_citizen_id);
-CREATE INDEX idx_appointments_status ON public.appointments(status);
-CREATE INDEX idx_appointments_date ON public.appointments(appointment_date);
-CREATE INDEX idx_document_requests_senior_citizen_id ON public.document_requests(senior_citizen_id);
-CREATE INDEX idx_document_requests_status ON public.document_requests(status);
-CREATE INDEX idx_benefits_senior_citizen_id ON public.benefits(senior_citizen_id);
-CREATE INDEX idx_benefits_status ON public.benefits(status);
-CREATE INDEX idx_census_records_barangay ON public.census_records(barangay);
-CREATE INDEX idx_census_records_year_month ON public.census_records(year, month);
-CREATE INDEX idx_beneficiaries_senior_citizen_id ON public.beneficiaries(senior_citizen_id);
-CREATE INDEX idx_senior_citizens_housing_condition ON public.senior_citizens(housing_condition);
-CREATE INDEX idx_senior_citizens_physical_health_condition ON public.senior_citizens(physical_health_condition);
-CREATE INDEX idx_senior_citizens_living_condition ON public.senior_citizens(living_condition);
+CREATE INDEX idx_activities_assigned_by ON public.activities(assigned_by);
+CREATE INDEX idx_activity_assignees_student_id ON public.activity_assignees(student_id);
+CREATE INDEX idx_activity_class_assignees_class_id ON public.activity_class_assignees(class_id);
+CREATE INDEX idx_submissions_activity_student ON public.submissions(activity_id, student_id);
 
 -- Enable Row Level Security
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.senior_citizens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.class_students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_assignees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_class_assignees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_assignees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_class_assignees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.document_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.benefits ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.census_records ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for users table
--- Allow users to view their own profile
-CREATE POLICY "Users can view own profile" ON public.users
+-- Policies: classes
+CREATE POLICY "Service role can manage all classes" ON public.classes
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers can manage own classes" ON public.classes
+  FOR ALL USING (
+    created_by = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'teacher'
+    )
+  ) WITH CHECK (
+    created_by = auth.uid()
+  );
+
+CREATE POLICY "Students can view enrolled classes" ON public.classes
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.class_students cs
+      WHERE cs.class_id = classes.id AND cs.student_id = auth.uid()
+    )
+  );
+
+-- Policies: class_students
+CREATE POLICY "Service role can manage all class_students" ON public.class_students
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers manage enrollments for own classes" ON public.class_students
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.classes c
+      WHERE c.id = class_students.class_id AND c.created_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "Students can view own enrollments" ON public.class_students
+  FOR SELECT USING (student_id = auth.uid());
+
+-- Policies: profiles
+CREATE POLICY "Service role can manage all profiles" ON public.profiles
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT USING (auth.uid() = id);
 
--- Allow users to update their own profile
-CREATE POLICY "Users can update own profile" ON public.users
+CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
--- Allow users to insert their own profile (for the trigger)
-CREATE POLICY "Users can insert own profile" ON public.users
+CREATE POLICY "Users can insert own profile" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Allow service role to manage all users (for admin operations)
-CREATE POLICY "Service role can manage all users" ON public.users
-  FOR ALL USING (auth.role() = 'service_role');
-
--- OSCA can view all users (simplified policy)
-CREATE POLICY "OSCA can view all users" ON public.users
+CREATE POLICY "Teachers can view all profiles" ON public.profiles
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid() AND p.role = 'teacher'
     )
   );
 
--- BASCA can view users in their barangay (simplified policy)
-CREATE POLICY "BASCA can view users in their barangay" ON public.users
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay = users.barangay
-    )
-  );
-
--- RLS Policies for senior_citizens table
-CREATE POLICY "Senior citizens can view own record" ON public.senior_citizens
-  FOR SELECT USING (auth.uid() = user_id);
-
--- Allow service role to manage all senior citizens (for admin operations)
-CREATE POLICY "Service role can manage all senior citizens" ON public.senior_citizens
+-- Policies: lessons
+CREATE POLICY "Service role can manage all lessons" ON public.lessons
   FOR ALL USING (auth.role() = 'service_role');
 
-CREATE POLICY "OSCA can manage all senior citizens" ON public.senior_citizens
+CREATE POLICY "Teachers can manage own lessons" ON public.lessons
   FOR ALL USING (
+    created_by = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'teacher'
+    )
+  ) WITH CHECK (
+    created_by = auth.uid()
+  );
+
+CREATE POLICY "Teachers can view all lessons" ON public.lessons
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'teacher')
+  );
+
+CREATE POLICY "Students can view published lessons" ON public.lessons
+  FOR SELECT USING (is_published = TRUE);
+
+-- Policies: quizzes
+CREATE POLICY "Service role can manage all quizzes" ON public.quizzes
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers can manage own quizzes" ON public.quizzes
+  FOR ALL USING (
+    created_by = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'teacher'
+    )
+  ) WITH CHECK (
+    created_by = auth.uid()
+  );
+
+CREATE POLICY "Students can view assigned quizzes" ON public.quizzes
+  FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
+      SELECT 1 FROM public.quiz_assignees qa
+      WHERE qa.quiz_id = quizzes.id AND qa.student_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.quiz_class_assignees qca
+      JOIN public.class_students cs ON cs.class_id = qca.class_id
+      WHERE qca.quiz_id = quizzes.id AND cs.student_id = auth.uid()
     )
   );
 
-CREATE POLICY "BASCA can manage senior citizens in their barangay" ON public.senior_citizens
+-- Policies: quiz_class_assignees
+CREATE POLICY "Service role can manage all quiz_class_assignees" ON public.quiz_class_assignees
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers manage class assignees for own quizzes" ON public.quiz_class_assignees
   FOR ALL USING (
     EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay = senior_citizens.barangay
+      SELECT 1 FROM public.quizzes q
+      WHERE q.id = quiz_class_assignees.quiz_id AND q.created_by = auth.uid()
     )
   );
 
--- RLS Policies for announcements table
-CREATE POLICY "All authenticated users can view announcements" ON public.announcements
-  FOR SELECT USING (auth.uid() IS NOT NULL);
+-- Policies: quiz_questions (teachers on their own quizzes)
+CREATE POLICY "Service role can manage all quiz questions" ON public.quiz_questions
+  FOR ALL USING (auth.role() = 'service_role');
 
--- Allow service role to manage all announcements (for admin operations)
+CREATE POLICY "Teachers manage questions for own quizzes" ON public.quiz_questions
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.quizzes q
+      WHERE q.id = quiz_questions.quiz_id AND q.created_by = auth.uid()
+    )
+  );
+
+-- Policies: quiz_assignees
+CREATE POLICY "Service role can manage all quiz_assignees" ON public.quiz_assignees
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers manage quiz assignees for own quizzes" ON public.quiz_assignees
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.quizzes q
+      WHERE q.id = quiz_assignees.quiz_id AND q.created_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "Students can view own quiz assignments" ON public.quiz_assignees
+  FOR SELECT USING (student_id = auth.uid());
+
+-- Policies: quiz_results
+CREATE POLICY "Service role can manage all quiz results" ON public.quiz_results
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Students can insert own quiz results for assigned quizzes" ON public.quiz_results
+  FOR INSERT WITH CHECK (
+    student_id = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.quiz_assignees qa
+      WHERE qa.quiz_id = quiz_results.quiz_id AND qa.student_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Students can view own quiz results" ON public.quiz_results
+  FOR SELECT USING (student_id = auth.uid());
+
+CREATE POLICY "Teachers can view results for their quizzes" ON public.quiz_results
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.quizzes q
+      WHERE q.id = quiz_results.quiz_id AND q.created_by = auth.uid()
+    )
+  );
+
+-- Policies: activities
+CREATE POLICY "Service role can manage all activities" ON public.activities
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers can manage own activities" ON public.activities
+  FOR ALL USING (
+    assigned_by = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'teacher'
+    )
+  ) WITH CHECK (
+    assigned_by = auth.uid()
+  );
+
+CREATE POLICY "Students can view assigned activities" ON public.activities
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.activity_assignees aa
+      WHERE aa.activity_id = activities.id AND aa.student_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.activity_class_assignees aca
+      JOIN public.class_students cs ON cs.class_id = aca.class_id
+      WHERE aca.activity_id = activities.id AND cs.student_id = auth.uid()
+    )
+  );
+
+-- Policies: activity_assignees
+CREATE POLICY "Service role can manage all activity_assignees" ON public.activity_assignees
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers manage assignees for own activities" ON public.activity_assignees
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.activities a
+      WHERE a.id = activity_assignees.activity_id AND a.assigned_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "Students can view own activity assignments" ON public.activity_assignees
+  FOR SELECT USING (student_id = auth.uid());
+
+-- Policies: activity_class_assignees
+CREATE POLICY "Service role can manage all activity_class_assignees" ON public.activity_class_assignees
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Teachers manage class assignees for own activities" ON public.activity_class_assignees
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM public.activities a
+      WHERE a.id = activity_class_assignees.activity_id AND a.assigned_by = auth.uid()
+    )
+  );
+
+-- Policies: submissions
+CREATE POLICY "Service role can manage all submissions" ON public.submissions
+  FOR ALL USING (auth.role() = 'service_role');
+
+CREATE POLICY "Students can insert submissions for assigned activities" ON public.submissions
+  FOR INSERT WITH CHECK (
+    student_id = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.activity_assignees aa
+      WHERE aa.activity_id = submissions.activity_id AND aa.student_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Students can view own submissions" ON public.submissions
+  FOR SELECT USING (student_id = auth.uid());
+
+CREATE POLICY "Students can update own submission before graded" ON public.submissions
+  FOR UPDATE USING (
+    student_id = auth.uid() AND graded_at IS NULL
+  );
+
+CREATE POLICY "Teachers can view submissions for their activities" ON public.submissions
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.activities a
+      WHERE a.id = submissions.activity_id AND a.assigned_by = auth.uid()
+    )
+  );
+
+CREATE POLICY "Teachers can grade submissions for their activities" ON public.submissions
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.activities a
+      WHERE a.id = submissions.activity_id AND a.assigned_by = auth.uid()
+    )
+  );
+
+-- Policies: announcements
 CREATE POLICY "Service role can manage all announcements" ON public.announcements
   FOR ALL USING (auth.role() = 'service_role');
 
-CREATE POLICY "OSCA can manage all announcements" ON public.announcements
+CREATE POLICY "Teachers can manage own announcements" ON public.announcements
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
+    created_by = auth.uid() AND EXISTS (
+      SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND p.role = 'teacher'
     )
+  ) WITH CHECK (
+    created_by = auth.uid()
   );
 
-CREATE POLICY "BASCA can manage announcements for their barangay" ON public.announcements
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay = announcements.target_barangay
-    )
-  );
-
--- RLS Policies for appointments table
-CREATE POLICY "Senior citizens can view own appointments" ON public.appointments
+CREATE POLICY "All authenticated users can view published announcements" ON public.announcements
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.senior_citizens 
-      WHERE user_id = auth.uid() AND id = senior_citizen_id
-    )
-  );
-
--- Allow service role to manage all appointments (for admin operations)
-CREATE POLICY "Service role can manage all appointments" ON public.appointments
-  FOR ALL USING (auth.role() = 'service_role');
-
-CREATE POLICY "OSCA can manage all appointments" ON public.appointments
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
-    )
-  );
-
-CREATE POLICY "BASCA can manage appointments in their barangay" ON public.appointments
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay IN (
-        SELECT barangay FROM public.senior_citizens WHERE id = senior_citizen_id
+    is_published = TRUE AND (
+      target_role IS NULL OR target_role = (
+        SELECT p.role FROM public.profiles p WHERE p.id = auth.uid()
       )
     )
   );
 
--- RLS Policies for document_requests table
-CREATE POLICY "Senior citizens can view own document requests" ON public.document_requests
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.senior_citizens 
-      WHERE user_id = auth.uid() AND id = senior_citizen_id
-    )
-  );
-
--- Allow service role to manage all document requests (for admin operations)
-CREATE POLICY "Service role can manage all document requests" ON public.document_requests
-  FOR ALL USING (auth.role() = 'service_role');
-
-CREATE POLICY "OSCA can manage all document requests" ON public.document_requests
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
-    )
-  );
-
-CREATE POLICY "BASCA can manage document requests in their barangay" ON public.document_requests
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay IN (
-        SELECT barangay FROM public.senior_citizens WHERE id = senior_citizen_id
-      )
-    )
-  );
-
--- RLS Policies for benefits table
-CREATE POLICY "Senior citizens can view own benefits" ON public.benefits
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.senior_citizens 
-      WHERE user_id = auth.uid() AND id = senior_citizen_id
-    )
-  );
-
--- Allow service role to manage all benefits (for admin operations)
-CREATE POLICY "Service role can manage all benefits" ON public.benefits
-  FOR ALL USING (auth.role() = 'service_role');
-
-CREATE POLICY "OSCA can manage all benefits" ON public.benefits
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
-    )
-  );
-
-CREATE POLICY "BASCA can manage benefits in their barangay" ON public.benefits
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay IN (
-        SELECT barangay FROM public.senior_citizens WHERE id = senior_citizen_id
-      )
-    )
-  );
-
--- RLS Policies for census_records table
--- Allow service role to manage all census records (for admin operations)
-CREATE POLICY "Service role can manage all census records" ON public.census_records
-  FOR ALL USING (auth.role() = 'service_role');
-
-CREATE POLICY "OSCA can view all census records" ON public.census_records
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
-    )
-  );
-
-CREATE POLICY "BASCA can view census records for their barangay" ON public.census_records
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay = census_records.barangay
-    )
-  );
-
--- RLS Policies for beneficiaries table
--- Allow service role to manage all beneficiaries (for admin operations)
-CREATE POLICY "Service role can manage all beneficiaries" ON public.beneficiaries
-  FOR ALL USING (auth.role() = 'service_role');
-
-CREATE POLICY "OSCA can manage all beneficiaries" ON public.beneficiaries
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'osca'
-    )
-  );
-
-CREATE POLICY "BASCA can manage beneficiaries in their barangay" ON public.beneficiaries
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM public.users 
-      WHERE id = auth.uid() AND role = 'basca' AND barangay IN (
-        SELECT barangay FROM public.senior_citizens WHERE id = senior_citizen_id
-      )
-    )
-  );
-
-CREATE POLICY "Senior citizens can view own beneficiaries" ON public.beneficiaries
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.senior_citizens 
-      WHERE user_id = auth.uid() AND id = senior_citizen_id
-    )
-  );
-
--- Create updated_at trigger function
+-- updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
--- Create triggers for updated_at
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users
+-- Attach updated_at triggers
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_senior_citizens_updated_at BEFORE UPDATE ON public.senior_citizens
+CREATE TRIGGER update_lessons_updated_at BEFORE UPDATE ON public.lessons
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_quizzes_updated_at BEFORE UPDATE ON public.quizzes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_quiz_questions_updated_at BEFORE UPDATE ON public.quiz_questions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_quiz_results_updated_at BEFORE UPDATE ON public.quiz_results
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_activities_updated_at BEFORE UPDATE ON public.activities
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_submissions_updated_at BEFORE UPDATE ON public.submissions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_announcements_updated_at BEFORE UPDATE ON public.announcements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_appointments_updated_at BEFORE UPDATE ON public.appointments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_document_requests_updated_at BEFORE UPDATE ON public.document_requests
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_benefits_updated_at BEFORE UPDATE ON public.benefits
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_census_records_updated_at BEFORE UPDATE ON public.census_records
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_beneficiaries_updated_at BEFORE UPDATE ON public.beneficiaries
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Create improved function to handle user registration
+-- Create trigger to auto-create profile from auth.users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
-  first_name_val TEXT;
-  last_name_val TEXT;
-  phone_val TEXT;
-  role_val TEXT;
-  department_val TEXT;
-  position_val TEXT;
-  employee_id_val TEXT;
-  barangay_val TEXT;
-  barangay_code_val TEXT;
-  date_of_birth_val DATE;
-  address_val TEXT;
-  emergency_contact_name_val TEXT;
-  emergency_contact_phone_val TEXT;
-  emergency_contact_relationship_val TEXT;
+  role_text TEXT;
+  ls_text TEXT;
+  resolved_role user_role;
+  resolved_ls learning_style;
+  full_name_text TEXT;
+  first_name_text TEXT;
+  middle_name_text TEXT;
+  last_name_text TEXT;
+  name_tokens TEXT[];
+  token_count INT;
 BEGIN
-  -- Safely extract values from metadata with defaults
-  first_name_val := COALESCE(NEW.raw_user_meta_data->>'first_name', '');
-  last_name_val := COALESCE(NEW.raw_user_meta_data->>'last_name', '');
-  phone_val := COALESCE(NEW.raw_user_meta_data->>'phone', '');
-  role_val := COALESCE(NEW.raw_user_meta_data->>'role', 'senior');
-  
-  -- Extract role-specific fields
-  department_val := NEW.raw_user_meta_data->>'department';
-  position_val := NEW.raw_user_meta_data->>'position';
-  employee_id_val := NEW.raw_user_meta_data->>'employee_id';
-  barangay_val := NEW.raw_user_meta_data->>'barangay';
-  barangay_code_val := NEW.raw_user_meta_data->>'barangay_code';
-  date_of_birth_val := (NEW.raw_user_meta_data->>'date_of_birth')::DATE;
-  address_val := NEW.raw_user_meta_data->>'address';
-  emergency_contact_name_val := NEW.raw_user_meta_data->>'emergency_contact_name';
-  emergency_contact_phone_val := NEW.raw_user_meta_data->>'emergency_contact_phone';
-  emergency_contact_relationship_val := NEW.raw_user_meta_data->>'emergency_contact_relationship';
-  
-  -- Insert user record with safe defaults
-  INSERT INTO public.users (
+  role_text := lower(COALESCE(NEW.raw_user_meta_data->>'role', 'student'));
+  IF role_text NOT IN ('student', 'teacher') THEN
+    role_text := 'student';
+  END IF;
+  resolved_role := role_text::user_role;
+
+  ls_text := lower(COALESCE(NEW.raw_user_meta_data->>'learning_style', NULL));
+  IF ls_text IS NULL THEN
+    resolved_ls := NULL;
+  ELSE
+    -- normalize alias 'reading/writing' to 'reading_writing'
+    IF ls_text IN ('reading/writing', 'reading_writing') THEN
+      ls_text := 'reading_writing';
+    END IF;
+    IF ls_text NOT IN ('visual','auditory','reading_writing','kinesthetic') THEN
+      resolved_ls := NULL;
+    ELSE
+      resolved_ls := ls_text::learning_style;
+    END IF;
+  END IF;
+
+  full_name_text := COALESCE(NEW.raw_user_meta_data->>'full_name', NULL);
+  first_name_text := COALESCE(NEW.raw_user_meta_data->>'first_name', NULL);
+  middle_name_text := COALESCE(NEW.raw_user_meta_data->>'middle_name', NULL);
+  last_name_text := COALESCE(NEW.raw_user_meta_data->>'last_name', NULL);
+
+  IF full_name_text IS NULL AND first_name_text IS NULL AND last_name_text IS NULL THEN
+    full_name_text := NULL;
+  ELSIF full_name_text IS NULL THEN
+    full_name_text := trim(coalesce(first_name_text,'') || ' ' || coalesce(middle_name_text,'') || ' ' || coalesce(last_name_text,''));
+  ELSE
+    -- We have full_name; if parts are missing, derive them from full_name
+    IF (first_name_text IS NULL AND last_name_text IS NULL) OR (first_name_text IS NULL AND middle_name_text IS NULL) THEN
+      name_tokens := regexp_split_to_array(trim(full_name_text), '\s+');
+      token_count := coalesce(array_length(name_tokens, 1), 0);
+      IF token_count = 1 THEN
+        first_name_text := name_tokens[1];
+        last_name_text := NULL;
+        middle_name_text := NULL;
+      ELSIF token_count = 2 THEN
+        first_name_text := name_tokens[1];
+        last_name_text := name_tokens[2];
+        middle_name_text := NULL;
+      ELSE
+        first_name_text := name_tokens[1];
+        last_name_text := name_tokens[token_count];
+        middle_name_text := array_to_string(name_tokens[2:token_count-1], ' ');
+      END IF;
+    END IF;
+  END IF;
+
+  INSERT INTO public.profiles (
     id, 
     email, 
-    first_name, 
-    last_name, 
-    phone, 
+    first_name,
+    middle_name,
+    last_name,
+    full_name,
     role,
-    department,
-    position,
-    employee_id,
-    barangay,
-    barangay_code,
-    date_of_birth,
-    address,
-    emergency_contact_name,
-    emergency_contact_phone,
-    emergency_contact_relationship,
-    is_verified,
+    profile_photo,
+    learning_style,
+    onboarding_completed,
     created_at,
     updated_at
   ) VALUES (
     NEW.id,
     NEW.email,
-    first_name_val,
-    last_name_val,
-    phone_val,
-    role_val::user_role,
-    department_val,
-    position_val,
-    employee_id_val,
-    barangay_val,
-    barangay_code_val,
-    date_of_birth_val,
-    address_val,
-    emergency_contact_name_val,
-    emergency_contact_phone_val,
-    emergency_contact_relationship_val,
+    first_name_text,
+    middle_name_text,
+    last_name_text,
+    full_name_text,
+    resolved_role,
+    NEW.raw_user_meta_data->>'profile_photo',
+    resolved_ls,
     FALSE,
     NOW(),
     NOW()
   );
   
   RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    -- Log the error but don't fail the registration
+EXCEPTION WHEN OTHERS THEN
     RAISE LOG 'Error in handle_new_user: %', SQLERRM;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for new user registration
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user(); 
