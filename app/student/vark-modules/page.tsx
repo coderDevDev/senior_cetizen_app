@@ -109,7 +109,9 @@ export default function StudentVARKModulesPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedLearningStyle, setSelectedLearningStyle] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
-  const [viewMode, setViewMode] = useState<'all' | 'recommended' | 'in-progress' | 'completed'>('all');
+  const [viewMode, setViewMode] = useState<
+    'all' | 'recommended' | 'in-progress' | 'completed'
+  >('all');
   const [bookmarkedModules, setBookmarkedModules] = useState<string[]>([]);
 
   const varkAPI = new VARKModulesAPI();
@@ -130,44 +132,53 @@ export default function StudentVARKModulesPage() {
 
       // Load all available modules
       const modulesData = await varkAPI.getModules();
-      
+
       // Filter modules based on student access and teacher configuration
-      const userLearningStyle = user?.user_metadata?.learning_style || 'visual';
+      const userLearningStyle = user?.learningStyle || 'visual';
       const filteredModules = modulesData.filter(module => {
         // Check if module is published
         if (!module.is_published) return false;
-        
+
         // Check if student has access based on class targeting
         if (module.target_class_id) {
           // If module targets a specific class, student must be enrolled
           // This would need to be implemented based on your class enrollment logic
           return true; // For now, show all published modules
         }
-        
+
         // Check if module targets student's learning style
-        if (module.target_learning_styles && module.target_learning_styles.length > 0) {
-          return module.target_learning_styles.includes(userLearningStyle as any);
+        if (
+          module.target_learning_styles &&
+          module.target_learning_styles.length > 0
+        ) {
+          return module.target_learning_styles.includes(
+            userLearningStyle as any
+          );
         }
-        
+
         // Check if module category matches student's learning style
         if (module.category?.learning_style === userLearningStyle) {
           return true;
         }
-        
+
         // Show general modules if no specific targeting
         return true;
       });
-      
+
       setModules(filteredModules);
 
       // Load student's enrolled classes
-      const classesData = await ClassesAPI.getStudentClasses(user!.id);
-      setEnrolledClasses(classesData);
+      try {
+        const classesData = await ClassesAPI.getStudentClasses(user!.id);
+        setEnrolledClasses(classesData);
+      } catch (error) {
+        console.error('Error loading enrolled classes:', error);
+        setEnrolledClasses([]);
+      }
 
       // Load progress data (placeholder - implement based on your progress tracking)
       const progressData: VARKModuleProgress[] = [];
       setProgress(progressData);
-
     } catch (error) {
       console.error('Error loading VARK modules data:', error);
       toast.error('Failed to load VARK modules data');
@@ -177,14 +188,14 @@ export default function StudentVARKModulesPage() {
   };
 
   const handleBookmark = (moduleId: string) => {
-    setBookmarkedModules(prev => 
-      prev.includes(moduleId) 
+    setBookmarkedModules(prev =>
+      prev.includes(moduleId)
         ? prev.filter(id => id !== moduleId)
         : [...prev, moduleId]
     );
     toast.success(
-      bookmarkedModules.includes(moduleId) 
-        ? 'Module removed from bookmarks' 
+      bookmarkedModules.includes(moduleId)
+        ? 'Module removed from bookmarks'
         : 'Module added to bookmarks'
     );
   };
@@ -245,32 +256,35 @@ export default function StudentVARKModulesPage() {
     const matchesSearch =
       module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       module.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesSubject =
       selectedSubject === 'all' || module.category?.subject === selectedSubject;
-    
+
     const matchesDifficulty =
-      selectedDifficulty === 'all' || module.difficulty_level === selectedDifficulty;
-    
+      selectedDifficulty === 'all' ||
+      module.difficulty_level === selectedDifficulty;
+
     const matchesCategory =
       selectedCategory === 'all' || module.category_id === selectedCategory;
-    
+
     const matchesLearningStyle =
       selectedLearningStyle === 'all' ||
-      (module.target_learning_styles && module.target_learning_styles.includes(selectedLearningStyle as any)) ||
+      (module.target_learning_styles &&
+        module.target_learning_styles.includes(selectedLearningStyle as any)) ||
       module.category?.learning_style === selectedLearningStyle;
-    
+
     const matchesClass =
-      selectedClass === 'all' || 
-      !module.target_class_id || 
+      selectedClass === 'all' ||
+      !module.target_class_id ||
       module.target_class_id === selectedClass;
 
     // Apply view mode filters
     let matchesViewMode = true;
     if (viewMode === 'recommended') {
-      const userLearningStyle = user?.user_metadata?.learning_style || 'visual';
-      matchesViewMode = module.target_learning_styles?.includes(userLearningStyle as any) ||
-                       module.category?.learning_style === userLearningStyle;
+      const userLearningStyle = user?.learningStyle || 'visual';
+      matchesViewMode =
+        module.target_learning_styles?.includes(userLearningStyle as any) ||
+        module.category?.learning_style === userLearningStyle;
     } else if (viewMode === 'in-progress') {
       matchesViewMode = getModuleStatus(module.id) === 'in_progress';
     } else if (viewMode === 'completed') {
@@ -289,17 +303,24 @@ export default function StudentVARKModulesPage() {
   });
 
   const subjects = Array.from(new Set(categories.map(cat => cat.subject)));
-  const learningStyles = ['visual', 'auditory', 'reading_writing', 'kinesthetic'];
+  const learningStyles = [
+    'visual',
+    'auditory',
+    'reading_writing',
+    'kinesthetic'
+  ];
   const difficultyLevels = ['beginner', 'intermediate', 'advanced'];
 
-  const userLearningStyle = user?.user_metadata?.learning_style || 'visual';
+  const userLearningStyle = user?.learningStyle || 'visual';
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00af8f]" />
-          <p className="text-lg text-gray-600">Loading your learning modules...</p>
+          <p className="text-lg text-gray-600">
+            Loading your learning modules...
+          </p>
         </div>
       </div>
     );
@@ -320,7 +341,11 @@ export default function StudentVARKModulesPage() {
                   VARK Learning Modules
                 </h1>
                 <p className="text-gray-600">
-                  Personalized learning content tailored to your {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels].toLowerCase()} learning style
+                  Personalized learning content tailored to your{' '}
+                  {learningStyleLabels[
+                    userLearningStyle as keyof typeof learningStyleLabels
+                  ].toLowerCase()}{' '}
+                  learning style
                 </p>
               </div>
             </div>
@@ -334,7 +359,7 @@ export default function StudentVARKModulesPage() {
                 Refresh
               </Button>
               <Button
-                onClick={() => window.location.href = '/student/dashboard'}
+                onClick={() => (window.location.href = '/student/dashboard')}
                 className="bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af90] text-white border-0">
                 <BookOpen className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -350,31 +375,53 @@ export default function StudentVARKModulesPage() {
         <div className="mb-8">
           <div className="flex flex-wrap gap-2">
             {[
-              { key: 'all', label: 'All Modules', icon: BookOpen, count: modules.length },
-              { key: 'recommended', label: 'Recommended', icon: Sparkles, count: modules.filter(m => 
-                m.target_learning_styles?.includes(userLearningStyle as any) || 
-                m.category?.learning_style === userLearningStyle
-              ).length },
-              { key: 'in-progress', label: 'In Progress', icon: Clock3, count: modules.filter(m => 
-                getModuleStatus(m.id) === 'in_progress'
-              ).length },
-              { key: 'completed', label: 'Completed', icon: CheckCircle2, count: modules.filter(m => 
-                getModuleStatus(m.id) === 'completed'
-              ).length }
+              {
+                key: 'all',
+                label: 'All Modules',
+                icon: BookOpen,
+                count: modules.length
+              },
+              {
+                key: 'recommended',
+                label: 'Recommended',
+                icon: Sparkles,
+                count: modules.filter(
+                  m =>
+                    m.target_learning_styles?.includes(
+                      userLearningStyle as any
+                    ) || m.category?.learning_style === userLearningStyle
+                ).length
+              },
+              {
+                key: 'in-progress',
+                label: 'In Progress',
+                icon: Clock3,
+                count: modules.filter(
+                  m => getModuleStatus(m.id) === 'in_progress'
+                ).length
+              },
+              {
+                key: 'completed',
+                label: 'Completed',
+                icon: CheckCircle2,
+                count: modules.filter(
+                  m => getModuleStatus(m.id) === 'completed'
+                ).length
+              }
             ].map(({ key, label, icon: Icon, count }) => (
               <Button
                 key={key}
                 variant={viewMode === key ? 'default' : 'outline'}
                 onClick={() => setViewMode(key as any)}
                 className={`${
-                  viewMode === key 
-                    ? 'bg-[#00af8f] hover:bg-[#00af90] text-white' 
+                  viewMode === key
+                    ? 'bg-[#00af8f] hover:bg-[#00af90] text-white'
                     : 'border-gray-300 hover:bg-gray-50'
                 }`}>
                 <Icon className="w-4 h-4 mr-2" />
                 {label}
-                <Badge 
-                  variant={viewMode === key ? 'secondary' : 'outline'} 
+                <Badge
+                  variant={viewMode === key ? 'secondary' : 'outline'}
                   className="ml-2 bg-white/20 text-white border-white/30">
                   {count}
                 </Badge>
@@ -411,7 +458,9 @@ export default function StudentVARKModulesPage() {
 
             {/* Subject Filter */}
             <div>
-              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+              <Select
+                value={selectedSubject}
+                onValueChange={setSelectedSubject}>
                 <SelectTrigger className="border-gray-300 focus:border-[#00af8f] focus:ring-[#00af8f]">
                   <SelectValue placeholder="All Subjects" />
                 </SelectTrigger>
@@ -428,7 +477,9 @@ export default function StudentVARKModulesPage() {
 
             {/* Learning Style Filter */}
             <div>
-              <Select value={selectedLearningStyle} onValueChange={setSelectedLearningStyle}>
+              <Select
+                value={selectedLearningStyle}
+                onValueChange={setSelectedLearningStyle}>
                 <SelectTrigger className="border-gray-300 focus:border-[#00af8f] focus:ring-[#00af8f]">
                   <SelectValue placeholder="All Styles" />
                 </SelectTrigger>
@@ -436,7 +487,11 @@ export default function StudentVARKModulesPage() {
                   <SelectItem value="all">All Learning Styles</SelectItem>
                   {learningStyles.map(style => (
                     <SelectItem key={style} value={style}>
-                      {learningStyleLabels[style as keyof typeof learningStyleLabels]}
+                      {
+                        learningStyleLabels[
+                          style as keyof typeof learningStyleLabels
+                        ]
+                      }
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -445,7 +500,9 @@ export default function StudentVARKModulesPage() {
 
             {/* Difficulty Filter */}
             <div>
-              <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+              <Select
+                value={selectedDifficulty}
+                onValueChange={setSelectedDifficulty}>
                 <SelectTrigger className="border-gray-300 focus:border-[#00af8f] focus:ring-[#00af8f]">
                   <SelectValue placeholder="All Levels" />
                 </SelectTrigger>
@@ -462,29 +519,49 @@ export default function StudentVARKModulesPage() {
           </div>
 
           {/* Active Filters Display */}
-          {(searchTerm || selectedSubject !== 'all' || selectedLearningStyle !== 'all' || selectedDifficulty !== 'all') && (
+          {(searchTerm ||
+            selectedSubject !== 'all' ||
+            selectedLearningStyle !== 'all' ||
+            selectedDifficulty !== 'all') && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-700">Active Filters:</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    Active Filters:
+                  </span>
                   {searchTerm && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    <Badge
+                      variant="secondary"
+                      className="bg-blue-100 text-blue-800">
                       Search: "{searchTerm}"
                     </Badge>
                   )}
                   {selectedSubject !== 'all' && (
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-100 text-green-800">
                       Subject: {selectedSubject}
                     </Badge>
                   )}
                   {selectedLearningStyle !== 'all' && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                      Style: {learningStyleLabels[selectedLearningStyle as keyof typeof learningStyleLabels]}
+                    <Badge
+                      variant="secondary"
+                      className="bg-purple-100 text-purple-800">
+                      Style:{' '}
+                      {
+                        learningStyleLabels[
+                          selectedLearningStyle as keyof typeof learningStyleLabels
+                        ]
+                      }
                     </Badge>
                   )}
                   {selectedDifficulty !== 'all' && (
-                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                      Difficulty: {selectedDifficulty.charAt(0).toUpperCase() + selectedDifficulty.slice(1)}
+                    <Badge
+                      variant="secondary"
+                      className="bg-yellow-100 text-yellow-800">
+                      Difficulty:{' '}
+                      {selectedDifficulty.charAt(0).toUpperCase() +
+                        selectedDifficulty.slice(1)}
                     </Badge>
                   )}
                 </div>
@@ -510,17 +587,18 @@ export default function StudentVARKModulesPage() {
           <div className="text-center py-12">
             <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {modules.length === 0 ? 'No modules available yet' : 'No modules match your filters'}
+              {modules.length === 0
+                ? 'No modules available yet'
+                : 'No modules match your filters'}
             </h3>
             <p className="text-gray-600 mb-4">
-              {modules.length === 0 
-                ? 'Teachers haven\'t created any modules yet. Check back later!'
-                : 'Try adjusting your search criteria or filters to find more modules.'
-              }
+              {modules.length === 0
+                ? "Teachers haven't created any modules yet. Check back later!"
+                : 'Try adjusting your search criteria or filters to find more modules.'}
             </p>
             {modules.length === 0 ? (
               <Button
-                onClick={() => window.location.href = '/student/dashboard'}
+                onClick={() => (window.location.href = '/student/dashboard')}
                 className="bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af90] text-white border-0">
                 <BookOpen className="w-4 h-4 mr-2" />
                 Back to Dashboard
@@ -544,23 +622,35 @@ export default function StudentVARKModulesPage() {
               const moduleStatus = getModuleStatus(module.id);
               const moduleProgress = getModuleProgress(module.id);
               const StatusIcon = getStatusIcon(moduleStatus);
-              const DifficultyIcon = difficultyIcons[module.difficulty_level as keyof typeof difficultyIcons];
+              const DifficultyIcon =
+                difficultyIcons[
+                  module.difficulty_level as keyof typeof difficultyIcons
+                ];
               const isBookmarked = bookmarkedModules.includes(module.id);
-              
+
               // Determine if module is recommended for this student
-              const isRecommended = module.target_learning_styles?.includes(userLearningStyle as any) ||
-                                   module.category?.learning_style === userLearningStyle;
+              const isRecommended =
+                module.target_learning_styles?.includes(
+                  userLearningStyle as any
+                ) || module.category?.learning_style === userLearningStyle;
 
               return (
-                <Card key={module.id} className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg overflow-hidden">
+                <Card
+                  key={module.id}
+                  className="group hover:shadow-xl transition-all duration-300 border-0 shadow-lg overflow-hidden">
                   {/* Module Header */}
                   <div className="relative">
                     <div className="h-32 bg-gradient-to-br from-[#00af8f]/10 to-[#00af90]/10 flex items-center justify-center">
-                      <div className={`w-16 h-16 bg-gradient-to-r ${learningStyleColors[userLearningStyle as keyof typeof learningStyleColors]} rounded-full flex items-center justify-center shadow-lg`}>
+                      <div
+                        className={`w-16 h-16 bg-gradient-to-r ${
+                          learningStyleColors[
+                            userLearningStyle as keyof typeof learningStyleColors
+                          ]
+                        } rounded-full flex items-center justify-center shadow-lg`}>
                         <Target className="w-8 h-8 text-white" />
                       </div>
                     </div>
-                    
+
                     {/* Bookmark Button */}
                     <Button
                       variant="ghost"
@@ -587,7 +677,10 @@ export default function StudentVARKModulesPage() {
                     {/* Progress Bar */}
                     {moduleProgress > 0 && (
                       <div className="absolute bottom-0 left-0 right-0">
-                        <Progress value={moduleProgress} className="h-1 rounded-none" />
+                        <Progress
+                          value={moduleProgress}
+                          className="h-1 rounded-none"
+                        />
                       </div>
                     )}
                   </div>
@@ -624,37 +717,52 @@ export default function StudentVARKModulesPage() {
                       {/* Difficulty */}
                       <div className="flex items-center space-x-2">
                         <DifficultyIcon className="w-4 h-4 text-gray-400" />
-                        <Badge className={`text-xs ${difficultyColors[module.difficulty_level as keyof typeof difficultyColors]}`}>
-                          {module.difficulty_level.charAt(0).toUpperCase() + module.difficulty_level.slice(1)}
+                        <Badge
+                          className={`text-xs ${
+                            difficultyColors[
+                              module.difficulty_level as keyof typeof difficultyColors
+                            ]
+                          }`}>
+                          {module.difficulty_level.charAt(0).toUpperCase() +
+                            module.difficulty_level.slice(1)}
                         </Badge>
                       </div>
 
                       {/* Learning Styles */}
-                      {module.target_learning_styles && module.target_learning_styles.length > 0 && (
-                        <div className="flex items-center space-x-2">
-                          <Target className="w-4 h-4 text-gray-400" />
-                          <div className="flex flex-wrap gap-1">
-                            {module.target_learning_styles.map((style, index) => (
-                              <Badge
-                                key={index}
-                                variant="secondary"
-                                className={`text-xs ${
-                                  style === userLearningStyle 
-                                    ? 'bg-[#00af8f]/20 text-[#00af8f]' 
-                                    : 'bg-gray-100 text-gray-600'
-                                }`}>
-                                {learningStyleLabels[style as keyof typeof learningStyleLabels]}
-                              </Badge>
-                            ))}
+                      {module.target_learning_styles &&
+                        module.target_learning_styles.length > 0 && (
+                          <div className="flex items-center space-x-2">
+                            <Target className="w-4 h-4 text-gray-400" />
+                            <div className="flex flex-wrap gap-1">
+                              {module.target_learning_styles.map(
+                                (style, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="secondary"
+                                    className={`text-xs ${
+                                      style === userLearningStyle
+                                        ? 'bg-[#00af8f]/20 text-[#00af8f]'
+                                        : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                    {
+                                      learningStyleLabels[
+                                        style as keyof typeof learningStyleLabels
+                                      ]
+                                    }
+                                  </Badge>
+                                )
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
                     </div>
 
                     {/* Action Button */}
                     <div className="flex items-center justify-between">
                       <Button
-                        onClick={() => window.location.href = `/student/vark-modules/${module.id}`}
+                        onClick={() =>
+                          (window.location.href = `/student/vark-modules/${module.id}`)
+                        }
                         className={`w-full ${
                           moduleStatus === 'completed'
                             ? 'bg-green-600 hover:bg-green-700'
@@ -697,16 +805,29 @@ export default function StudentVARKModulesPage() {
                   Optimize Your Learning Experience
                 </h3>
                 <p className="text-gray-700 mb-3">
-                  As a {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels].toLowerCase()} learner, 
-                  focus on modules that target your learning style for the best results. 
-                  Look for the "Recommended" badge to find content optimized for you.
+                  As a{' '}
+                  {learningStyleLabels[
+                    userLearningStyle as keyof typeof learningStyleLabels
+                  ].toLowerCase()}{' '}
+                  learner, focus on modules that target your learning style for
+                  the best results. Look for the "Recommended" badge to find
+                  content optimized for you.
                 </p>
                 <div className="flex items-center space-x-2">
-                  <Badge variant="secondary" className="bg-[#00af8f]/20 text-[#00af8f]">
+                  <Badge
+                    variant="secondary"
+                    className="bg-[#00af8f]/20 text-[#00af8f]">
                     <Sparkles className="w-3 h-3 mr-1" />
                     Personalized Content
                   </Badge>
-                  <Badge variant="outline">Learning Style: {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels]}</Badge>
+                  <Badge variant="outline">
+                    Learning Style:{' '}
+                    {
+                      learningStyleLabels[
+                        userLearningStyle as keyof typeof learningStyleLabels
+                      ]
+                    }
+                  </Badge>
                 </div>
               </div>
             </div>

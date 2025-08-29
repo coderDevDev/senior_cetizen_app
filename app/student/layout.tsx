@@ -13,7 +13,7 @@ export default function StudentLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar */}
       <StudentSidebar
         isOpen={sidebarOpen}
@@ -21,7 +21,7 @@ export default function StudentLayout({
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="lg:ml-64">
         {/* Top Navigation Bar */}
         <header className="bg-white border-b border-gray-200 px-4 py-3 lg:hidden">
           <div className="flex items-center justify-between">
@@ -44,7 +44,7 @@ export default function StudentLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto">{children}</main>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );

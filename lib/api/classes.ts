@@ -256,6 +256,197 @@ export class ClassesAPI {
     }
   }
 
+  // Get classes that a student is enrolled in
+  static async getStudentClasses(studentId: string): Promise<Class[]> {
+    try {
+      const { data, error } = await supabase
+        .from('class_students')
+        .select(
+          `
+          class_id,
+          joined_at,
+          classes!class_students_class_id_fkey(
+            *,
+            profiles!classes_created_by_fkey(
+              id,
+              first_name,
+              last_name,
+              full_name
+            ),
+            class_students(
+              student_id,
+              profiles!class_students_student_id_fkey(
+                id,
+                first_name,
+                last_name,
+                full_name,
+                email,
+                learning_style,
+                grade_level
+              )
+            )
+          )
+        `
+        )
+        .eq('student_id', studentId)
+        .order('joined_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data
+        .map((enrollment: any) => {
+          const classData = enrollment.classes;
+          if (!classData) return null;
+
+          return {
+            id: classData.id,
+            name: classData.name,
+            description: classData.description,
+            subject: classData.subject,
+            grade_level: classData.grade_level,
+            created_by: classData.created_by,
+            created_at: classData.created_at,
+            updated_at: classData.updated_at,
+            student_count: classData.class_students?.length || 0,
+            teacher_name: classData.profiles?.full_name || 'Unknown Teacher',
+            students:
+              classData.class_students?.map((cs: any) => ({
+                id: cs.student_id,
+                joined_at: cs.joined_at,
+                first_name: cs.profiles?.first_name || '',
+                last_name: cs.profiles?.last_name || '',
+                full_name: cs.profiles?.full_name || '',
+                email: cs.profiles?.email || '',
+                learning_style: cs.profiles?.learning_style || '',
+                grade_level: cs.profiles?.grade_level || ''
+              })) || []
+          };
+        })
+        .filter(Boolean) as Class[];
+    } catch (error) {
+      console.error('Error fetching student classes:', error);
+      throw error;
+    }
+  }
+
+  static async getStudentClassDetails(
+    classId: string,
+    studentId: string
+  ): Promise<any> {
+    try {
+      // First check if student is enrolled in this class
+      const { data: enrollment, error: enrollmentError } = await supabase
+        .from('class_students')
+        .select('*')
+        .eq('class_id', classId)
+        .eq('student_id', studentId)
+        .single();
+
+      if (enrollmentError || !enrollment) {
+        throw new Error('Student not enrolled in this class');
+      }
+
+      // Get detailed class information
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select(
+          `
+          *,
+          profiles!classes_created_by_fkey(
+            id,
+            first_name,
+            last_name,
+            full_name,
+            email
+          ),
+          class_students(
+            student_id,
+            joined_at,
+            profiles!class_students_student_id_fkey(
+              id,
+              first_name,
+              last_name,
+              full_name,
+              email,
+              learning_style,
+              grade_level,
+              profile_photo
+            )
+          )
+        `
+        )
+        .eq('id', classId)
+        .single();
+
+      if (classError) throw classError;
+
+      // Get VARK modules for this class
+      const { data: modules, error: modulesError } = await supabase
+        .from('vark_modules')
+        .select(
+          `
+          *,
+          category: vark_module_categories(*)
+        `
+        )
+        .eq('target_class_id', classId)
+        .eq('is_published', true);
+
+      if (modulesError) {
+        console.error('Error fetching modules:', modulesError);
+      }
+
+      // Get student's progress for modules in this class
+      const { data: progress, error: progressError } = await supabase
+        .from('vark_module_progress')
+        .select('*')
+        .eq('student_id', studentId)
+        .in('module_id', modules?.map(m => m.id) || []);
+
+      if (progressError) {
+        console.error('Error fetching progress:', progressError);
+      }
+
+      return {
+        class: {
+          id: classData.id,
+          name: classData.name,
+          description: classData.description,
+          subject: classData.subject,
+          grade_level: classData.grade_level,
+          created_at: classData.created_at,
+          updated_at: classData.updated_at,
+          teacher: {
+            id: classData.profiles?.id,
+            name: classData.profiles?.full_name || 'Unknown Teacher',
+            email: classData.profiles?.email
+          },
+          students:
+            classData.class_students?.map((cs: any) => ({
+              id: cs.student_id,
+              joined_at: cs.joined_at,
+              first_name: cs.profiles?.first_name || '',
+              last_name: cs.profiles?.last_name || '',
+              full_name: cs.profiles?.full_name || '',
+              email: cs.profiles?.email || '',
+              learning_style: cs.profiles?.learning_style || '',
+              grade_level: cs.profiles?.grade_level || '',
+              profile_photo: cs.profiles?.profile_photo
+            })) || [],
+          student_count: classData.class_students?.length || 0
+        },
+        modules: modules || [],
+        progress: progress || [],
+        enrollment: {
+          joined_at: enrollment.joined_at
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching class details:', error);
+      throw error;
+    }
+  }
+
   // Get class statistics
   static async getClassStats(classId: string): Promise<any> {
     try {

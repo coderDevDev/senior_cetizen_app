@@ -1,34 +1,26 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import {
   Home,
   BookOpen,
   Target,
   FileText,
   Activity,
-  User,
   Settings,
-  Bell,
   Trophy,
   Calendar,
-  Clock,
   TrendingUp,
   Award,
-  Bookmark,
   HelpCircle,
   LogOut,
-  ChevronLeft,
-  Menu,
-  X,
-  PlayCircle
+  PlayCircle,
+  Lightbulb,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -37,94 +29,35 @@ interface StudentSidebarProps {
   onToggle: () => void;
 }
 
-const navigation = [
-  {
-    name: 'Dashboard',
-    href: '/student/dashboard',
-    icon: Home,
-    description: 'Overview of your learning progress',
-    badge: null
-  },
-  {
-    name: 'VARK Modules',
-    href: '/student/vark-modules',
-    icon: Target,
-    description: 'Personalized learning modules',
-    badge: 'New'
-  },
-  {
-    name: 'Lessons',
-    href: '/student/lessons',
-    icon: BookOpen,
-    description: 'Structured learning content',
-    badge: null
-  },
-  {
-    name: 'Activities',
-    href: '/student/activities',
-    icon: Activity,
-    description: 'Interactive learning tasks',
-    badge: null
-  },
-  {
-    name: 'Quizzes',
-    href: '/student/quizzes',
-    icon: FileText,
-    description: 'Test your knowledge',
-    badge: null
-  },
-  {
-    name: 'Progress',
-    href: '/student/progress',
-    icon: TrendingUp,
-    description: 'Track your learning journey',
-    badge: null
-  },
-  {
-    name: 'Achievements',
-    href: '/student/achievements',
-    icon: Trophy,
-    description: 'Your earned badges & rewards',
-    badge: null
-  },
-  {
-    name: 'Schedule',
-    href: '/student/schedule',
-    icon: Calendar,
-    description: 'Learning calendar & deadlines',
-    badge: null
-  }
+const navigationItems = [
+  { icon: Home, label: 'Dashboard', href: '/student/dashboard' },
+  { icon: Target, label: 'VARK Modules', href: '/student/vark-modules' },
+  { icon: BookOpen, label: 'My Classes', href: '/student/classes' },
+  { icon: Activity, label: 'Activities', href: '/student/activities' },
+  { icon: FileText, label: 'Quizzes', href: '/student/quizzes' },
+  { icon: TrendingUp, label: 'Progress', href: '/student/progress' },
+  { icon: Trophy, label: 'Achievements', href: '/student/achievements' },
+  { icon: Calendar, label: 'Schedule', href: '/student/schedule' },
+  { icon: Settings, label: 'Settings', href: '/student/settings' }
 ];
 
 const quickActions = [
   {
-    name: 'Continue Learning',
-    href: '/student/vark-modules',
     icon: PlayCircle,
-    color: 'bg-gradient-to-r from-[#00af8f] to-[#00af90]'
+    label: 'Continue Learning',
+    href: '/student/vark-modules'
   },
-  {
-    name: 'Take Quiz',
-    href: '/student/quizzes',
-    icon: FileText,
-    color: 'bg-gradient-to-r from-purple-500 to-purple-600'
-  },
-  {
-    name: 'Submit Activity',
-    href: '/student/activities',
-    icon: Activity,
-    color: 'bg-gradient-to-r from-orange-500 to-orange-600'
-  }
+  { icon: Target, label: 'Take Assessment', href: '/student/assessment' },
+  { icon: Lightbulb, label: 'Learning Tips', href: '/student/tips' }
 ];
 
 export function StudentSidebar({ isOpen, onToggle }: StudentSidebarProps) {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
-  const [showQuickActions, setShowQuickActions] = useState(true);
+  const { user, logout } = useAuth();
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -142,52 +75,45 @@ export function StudentSidebar({ isOpen, onToggle }: StudentSidebarProps) {
 
       {/* Sidebar */}
       <div
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0',
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        )}>
+        }`}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="p-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#00af8f] to-[#00af90] rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-[#00af8f] to-[#00af90] rounded-lg flex items-center justify-center">
                 <Target className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Student Portal
-                </h1>
-                <p className="text-sm text-gray-500">VARK Learning System</p>
+                <h1 className="text-xl font-bold text-gray-900">EduHub</h1>
+                <p className="text-sm text-gray-500">Student Portal</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggle}
-              className="lg:hidden">
-              <X className="w-5 h-5" />
-            </Button>
           </div>
 
           {/* User Profile Section */}
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
               <Avatar className="w-12 h-12">
-                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                <AvatarImage src={user?.profilePhoto} />
                 <AvatarFallback className="bg-gradient-to-r from-[#00af8f] to-[#00af90] text-white">
                   {user?.email?.charAt(0).toUpperCase() || 'S'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.user_metadata?.full_name || user?.email || 'Student'}
+                  {user?.fullName ||
+                    user?.firstName ||
+                    user?.email ||
+                    'Student'}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
                   {user?.email || 'student@example.com'}
                 </p>
                 <div className="flex items-center space-x-2 mt-1">
                   <Badge variant="secondary" className="text-xs">
-                    {user?.user_metadata?.learning_style || 'Visual'} Learner
+                    {user?.learningStyle || 'Visual'} Learner
                   </Badge>
                   <Badge variant="outline" className="text-xs">
                     Active
@@ -198,114 +124,74 @@ export function StudentSidebar({ isOpen, onToggle }: StudentSidebarProps) {
           </div>
 
           {/* Quick Actions */}
-          {showQuickActions && (
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-gray-900">
-                  Quick Actions
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowQuickActions(false)}
-                  className="h-6 w-6 p-0">
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {quickActions.map(action => (
+          <div className="px-4 py-4 border-b border-gray-200">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+              Quick Actions
+            </h3>
+            <div className="space-y-2">
+              {quickActions.map(action => {
+                const Icon = action.icon;
+                return (
                   <Link
-                    key={action.name}
+                    key={action.label}
                     href={action.href}
-                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div
-                      className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center`}>
-                      <action.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">
-                      {action.name}
-                    </span>
+                    className="flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+                    onClick={() => onToggle()}>
+                    <Icon className="w-4 h-4" />
+                    <span className="text-sm font-medium">{action.label}</span>
+                    <ChevronRight className="w-3 h-3 ml-auto text-gray-400" />
                   </Link>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-6 py-4 space-y-2 overflow-y-auto">
-            <div className="mb-4">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Learning Navigation
-              </h3>
-            </div>
-
-            {navigation.map(item => {
+          <nav className="flex-1 px-4 py-6 space-y-2">
+            {navigationItems.map(item => {
+              const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
                 <Link
-                  key={item.name}
+                  key={item.label}
                   href={item.href}
-                  className={cn(
-                    'group flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200',
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-gradient-to-r from-[#00af8f]/10 to-[#00af90]/10 border border-[#00af8f]/20 text-[#00af8f]'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  )}>
-                  <div
-                    className={cn(
-                      'w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200',
-                      isActive
-                        ? 'bg-[#00af8f] text-white'
-                        : 'text-gray-400 group-hover:text-gray-600'
-                    )}>
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium truncate">
-                        {item.name}
-                      </span>
-                      {item.badge && (
-                        <Badge variant="secondary" className="text-xs">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-500 truncate">
-                      {item.description}
-                    </p>
-                  </div>
+                      ? 'bg-gradient-to-r from-[#00af8f] to-[#00af90] text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                  }`}
+                  onClick={() => onToggle()}>
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-gray-200 space-y-3">
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1 justify-start">
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </Button>
+          {/* Footer Links */}
+          <div className="px-4 py-4 border-t border-gray-200">
+            <div className="space-y-2">
+              <Link
+                href="/help"
+                className="flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200">
+                <HelpCircle className="w-4 h-4" />
+                <span className="text-sm">Help & Support</span>
+              </Link>
+              <Link
+                href="/feedback"
+                className="flex items-center space-x-3 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-200">
+                <Award className="w-4 h-4" />
+                <span className="text-sm">Feedback</span>
+              </Link>
             </div>
-            <div className="flex items-center space-x-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1 justify-start">
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Help & Support
-              </Button>
-            </div>
-            <Separator />
+          </div>
+
+          {/* Logout */}
+          <div className="p-4 border-t border-gray-200">
             <Button
-              variant="ghost"
-              size="sm"
               onClick={handleSignOut}
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
+              variant="outline"
+              className="w-full justify-start text-gray-700 hover:text-red-600 hover:border-red-300">
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>

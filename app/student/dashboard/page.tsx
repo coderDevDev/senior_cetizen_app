@@ -136,15 +136,14 @@ const formatTimestamp = (timestamp: string) => {
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
+    []
+  );
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [recommendedModules, setRecommendedModules] = useState<any[]>([]);
   const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const dashboardAPI = new StudentDashboardAPI();
-  const varkAPI = new VARKModulesAPI();
 
   useEffect(() => {
     if (user) {
@@ -157,32 +156,40 @@ export default function StudentDashboard() {
       setLoading(true);
 
       // Load dashboard statistics
-      const statsData = await dashboardAPI.getDashboardStats(user!.id);
+      const statsData = await StudentDashboardAPI.getDashboardStats(user!.id);
       setStats(statsData);
 
       // Load recent activities
-      const activitiesData = await dashboardAPI.getRecentActivities(user!.id);
+      const activitiesData = await StudentDashboardAPI.getRecentActivities(
+        user!.id
+      );
       setRecentActivities(activitiesData);
 
       // Load progress data
-      const progressData = await dashboardAPI.getProgressData(user!.id);
+      const progressData = await StudentDashboardAPI.getProgressData(user!.id);
       setProgress(progressData);
 
       // Load recommended modules based on learning style
-      const userLearningStyle = user?.user_metadata?.learning_style || 'visual';
+      const userLearningStyle = user?.learningStyle || 'visual';
+      const varkAPI = new VARKModulesAPI();
       const modulesData = await varkAPI.getModules();
       const recommended = modulesData
-        .filter(module => 
-          module.target_learning_styles?.includes(userLearningStyle) ||
-          module.category?.learning_style === userLearningStyle
+        .filter(
+          (module: any) =>
+            module.target_learning_styles?.includes(userLearningStyle) ||
+            module.category?.learning_style === userLearningStyle
         )
         .slice(0, 3);
       setRecommendedModules(recommended);
 
       // Load enrolled classes
-      const classesData = await ClassesAPI.getStudentClasses(user!.id);
-      setEnrolledClasses(classesData);
-
+      try {
+        const classesData = await ClassesAPI.getStudentClasses(user!.id);
+        setEnrolledClasses(classesData);
+      } catch (error) {
+        console.error('Error loading enrolled classes:', error);
+        setEnrolledClasses([]);
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
@@ -203,14 +210,17 @@ export default function StudentDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff] flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-[#00af8f]" />
-          <p className="text-lg text-gray-600">Loading your learning dashboard...</p>
+          <p className="text-lg text-gray-600">
+            Loading your learning dashboard...
+          </p>
         </div>
       </div>
     );
   }
 
-  const userLearningStyle = user?.user_metadata?.learning_style || 'visual';
-  const LearningStyleIcon = learningStyleIcons[userLearningStyle as keyof typeof learningStyleIcons];
+  const userLearningStyle = user?.learningStyle || 'visual';
+  const LearningStyleIcon =
+    learningStyleIcons[userLearningStyle as keyof typeof learningStyleIcons];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
@@ -224,7 +234,11 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Welcome back, {user?.user_metadata?.full_name?.split(' ')[0] || 'Student'}! 👋
+                  Welcome back,{' '}
+                  {user?.fullName?.split(' ')[0] ||
+                    user?.firstName ||
+                    'Student'}
+                  ! 👋
                 </h1>
                 <p className="text-gray-600">
                   Ready to continue your learning journey?
@@ -239,14 +253,12 @@ export default function StudentDashboard() {
                 disabled={refreshing}
                 className="border-gray-300 hover:bg-gray-50">
                 <RefreshCw
-                  className={`w-4 h-4 mr-2 ${
-                    refreshing ? 'animate-spin' : ''
-                  }`}
+                  className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`}
                 />
                 {refreshing ? 'Refreshing...' : 'Refresh'}
               </Button>
               <Button
-                onClick={() => window.location.href = '/student/vark-modules'}
+                onClick={() => (window.location.href = '/student/vark-modules')}
                 className="bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af90] text-white border-0">
                 <PlayCircle className="w-4 h-4 mr-2" />
                 Start Learning
@@ -263,18 +275,34 @@ export default function StudentDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className={`w-16 h-16 bg-gradient-to-r ${learningStyleColors[userLearningStyle as keyof typeof learningStyleColors]} rounded-full flex items-center justify-center shadow-lg`}>
+                <div
+                  className={`w-16 h-16 bg-gradient-to-r ${
+                    learningStyleColors[
+                      userLearningStyle as keyof typeof learningStyleColors
+                    ]
+                  } rounded-full flex items-center justify-center shadow-lg`}>
                   <LearningStyleIcon className="w-8 h-8 text-white" />
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900">
-                    {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels]} Learner
+                    {
+                      learningStyleLabels[
+                        userLearningStyle as keyof typeof learningStyleLabels
+                      ]
+                    }{' '}
+                    Learner
                   </h3>
                   <p className="text-gray-600">
-                    Your learning style is optimized for {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels].toLowerCase()} content
+                    Your learning style is optimized for{' '}
+                    {learningStyleLabels[
+                      userLearningStyle as keyof typeof learningStyleLabels
+                    ].toLowerCase()}{' '}
+                    content
                   </p>
                   <div className="flex items-center space-x-2 mt-2">
-                    <Badge variant="secondary" className="bg-[#00af8f]/20 text-[#00af8f]">
+                    <Badge
+                      variant="secondary"
+                      className="bg-[#00af8f]/20 text-[#00af8f]">
                       Personalized Content
                     </Badge>
                     <Badge variant="outline">AI Optimized</Badge>
@@ -339,7 +367,8 @@ export default function StudentDashboard() {
                     Activities
                   </p>
                   <p className="text-2xl font-bold text-purple-900">
-                    {stats?.activitiesSubmitted || 0}/{stats?.totalActivities || 0}
+                    {stats?.activitiesSubmitted || 0}/
+                    {stats?.totalActivities || 0}
                   </p>
                   <p className="text-xs text-purple-600 mt-1">
                     Completed/Total
@@ -381,14 +410,21 @@ export default function StudentDashboard() {
                     <span>Recommended for You</span>
                   </CardTitle>
                   <Link href="/student/vark-modules">
-                    <Button variant="ghost" size="sm" className="text-[#00af8f] hover:text-[#00af90]">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[#00af8f] hover:text-[#00af90]">
                       View All
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </Button>
                   </Link>
                 </div>
                 <p className="text-sm text-gray-600">
-                  Modules tailored to your {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels].toLowerCase()} learning style
+                  Modules tailored to your{' '}
+                  {learningStyleLabels[
+                    userLearningStyle as keyof typeof learningStyleLabels
+                  ].toLowerCase()}{' '}
+                  learning style
                 </p>
               </CardHeader>
               <CardContent>
@@ -396,16 +432,23 @@ export default function StudentDashboard() {
                   <div className="text-center py-8">
                     <Target className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-500">No recommended modules yet</p>
-                    <p className="text-sm text-gray-400">Complete your profile to get personalized recommendations</p>
+                    <p className="text-sm text-gray-400">
+                      Complete your profile to get personalized recommendations
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {recommendedModules.map((module) => (
+                    {recommendedModules.map(module => (
                       <div
                         key={module.id}
                         className="flex items-center space-x-4 p-4 rounded-lg border border-gray-200 hover:border-[#00af8f]/30 hover:shadow-md transition-all duration-200">
                         <div className="flex-shrink-0">
-                          <div className={`w-12 h-12 bg-gradient-to-r ${learningStyleColors[userLearningStyle as keyof typeof learningStyleColors]} rounded-lg flex items-center justify-center`}>
+                          <div
+                            className={`w-12 h-12 bg-gradient-to-r ${
+                              learningStyleColors[
+                                userLearningStyle as keyof typeof learningStyleColors
+                              ]
+                            } rounded-lg flex items-center justify-center`}>
                             <Target className="w-6 h-6 text-white" />
                           </div>
                         </div>
@@ -426,7 +469,9 @@ export default function StudentDashboard() {
                           </div>
                         </div>
                         <Link href={`/student/vark-modules/${module.id}`}>
-                          <Button size="sm" className="bg-[#00af8f] hover:bg-[#00af90] text-white">
+                          <Button
+                            size="sm"
+                            className="bg-[#00af8f] hover:bg-[#00af90] text-white">
                             <PlayCircle className="w-4 h-4 mr-1" />
                             Start
                           </Button>
@@ -456,17 +501,20 @@ export default function StudentDashboard() {
                   <div className="text-center py-8">
                     <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-500">No recent activities</p>
-                    <p className="text-sm text-gray-400">Start learning to see your progress</p>
+                    <p className="text-sm text-gray-400">
+                      Start learning to see your progress
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {recentActivities.slice(0, 5).map((activity) => {
+                    {recentActivities.slice(0, 5).map(activity => {
                       const StatusIcon = getStatusIcon(activity.status);
                       return (
                         <div
                           key={activity.id}
                           className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className={`w-8 h-8 ${activity.color} rounded-lg flex items-center justify-center`}>
+                          <div
+                            className={`w-8 h-8 ${activity.color} rounded-lg flex items-center justify-center`}>
                             <StatusIcon className="w-4 h-4 text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -506,7 +554,7 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {enrolledClasses.map((classItem) => (
+                {enrolledClasses.map(classItem => (
                   <div
                     key={classItem.id}
                     className="p-4 border border-gray-200 rounded-lg hover:border-[#00af8f]/30 hover:shadow-md transition-all duration-200">
@@ -526,15 +574,22 @@ export default function StudentDashboard() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Students:</span>
-                        <span className="font-medium">{classItem.students?.length || 0}</span>
+                        <span className="font-medium">
+                          {classItem.students?.length || 0}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-500">Modules:</span>
-                        <span className="font-medium">{classItem.modules?.length || 0}</span>
+                        <span className="font-medium">
+                          {classItem.modules?.length || 0}
+                        </span>
                       </div>
                     </div>
                     <Link href={`/student/classes/${classItem.id}`}>
-                      <Button variant="outline" size="sm" className="w-full mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-3">
                         View Class
                       </Button>
                     </Link>
@@ -557,14 +612,24 @@ export default function StudentDashboard() {
                   Learning Tip of the Day
                 </h3>
                 <p className="text-gray-700 mb-3">
-                  As a {learningStyleLabels[userLearningStyle as keyof typeof learningStyleLabels].toLowerCase()} learner, 
-                  try to {userLearningStyle === 'visual' ? 'use diagrams and charts to visualize concepts' : 
-                  userLearningStyle === 'auditory' ? 'read content aloud or discuss with peers' :
-                  userLearningStyle === 'reading_writing' ? 'take detailed notes and rewrite information in your own words' :
-                  'engage in hands-on activities and physical movement while learning'}.
+                  As a{' '}
+                  {learningStyleLabels[
+                    userLearningStyle as keyof typeof learningStyleLabels
+                  ].toLowerCase()}{' '}
+                  learner, try to{' '}
+                  {userLearningStyle === 'visual'
+                    ? 'use diagrams and charts to visualize concepts'
+                    : userLearningStyle === 'auditory'
+                    ? 'read content aloud or discuss with peers'
+                    : userLearningStyle === 'reading_writing'
+                    ? 'take detailed notes and rewrite information in your own words'
+                    : 'engage in hands-on activities and physical movement while learning'}
+                  .
                 </p>
                 <div className="flex items-center space-x-2">
-                  <Badge variant="secondary" className="bg-[#00af8f]/20 text-[#00af8f]">
+                  <Badge
+                    variant="secondary"
+                    className="bg-[#00af8f]/20 text-[#00af8f]">
                     Personalized Tip
                   </Badge>
                   <Badge variant="outline">Daily</Badge>
