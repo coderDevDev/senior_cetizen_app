@@ -10,17 +10,24 @@ import type {
   ForgotPasswordData
 } from '@/types/auth';
 import { AuthAPI } from '@/lib/api/auth';
+import { ProfileAPI } from '@/lib/api/profiles';
 
 const AuthContext = createContext<{
   authState: AuthState;
+  user: User | null;
   login: (
-    credentials: LoginCredentials
-  ) => Promise<{ success: boolean; message: string }>;
+    email: string,
+    password: string,
+    role?: 'student' | 'teacher'
+  ) => Promise<{ success: boolean; message: string; user?: User }>;
   register: (
     data: RegisterData
   ) => Promise<{ success: boolean; message: string }>;
   forgotPassword: (
     data: ForgotPasswordData
+  ) => Promise<{ success: boolean; message: string }>;
+  updateProfile: (
+    updates: Partial<User>
   ) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   clearError: () => void;
@@ -68,11 +75,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (
-    credentials: LoginCredentials
-  ): Promise<{ success: boolean; message: string }> => {
+    email: string,
+    password: string,
+    role: 'student' | 'teacher'
+  ): Promise<{ success: boolean; message: string; user?: User }> => {
     setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
+      const credentials: LoginCredentials = {
+        email,
+        password,
+        role // Include the selected role if provided
+      };
       const result = await AuthAPI.login(credentials);
 
       if (result.success && result.user) {
@@ -90,7 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }));
       }
 
-      return result;
+      return {
+        success: result.success,
+        message: result.message,
+        user: result.user || undefined
+      };
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Login failed';
@@ -112,14 +130,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await AuthAPI.register(data);
 
       if (result.success && result.user) {
-        // For registration, we don't automatically log the user in
-        // They need to verify their email first
-        setAuthState(prev => ({
-          ...prev,
+        console.log(
+          'Registration successful, setting user in auth state:',
+          result.user
+        );
+        // Auto-login after successful registration for immediate onboarding
+        setAuthState({
+          user: result.user,
+          isAuthenticated: true,
           isLoading: false,
           error: null
-        }));
+        });
       } else {
+        console.log('Registration failed:', result.message);
         setAuthState(prev => ({
           ...prev,
           isLoading: false,
@@ -181,13 +204,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthState(prev => ({ ...prev, error: null }));
   };
 
+  const updateProfile = async (
+    updates: Partial<User>
+  ): Promise<{ success: boolean; message: string }> => {
+    try {
+      // Use ProfileAPI for profile updates
+      const result = await ProfileAPI.updateProfile(updates as any);
+
+      if (result.success && result.user) {
+        setAuthState(prev => ({
+          ...prev,
+          user: result.user || null
+        }));
+      }
+
+      return result;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Profile update failed';
+      return { success: false, message: errorMessage };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
         authState,
+        user: authState.user,
         login,
         register,
         forgotPassword,
+        updateProfile,
         logout,
         clearError
       }}>
