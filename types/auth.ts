@@ -1,30 +1,17 @@
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  role: 'osca' | 'basca' | 'senior';
-  avatar?: string;
-  isVerified: boolean;
+  role: 'student' | 'teacher';
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  fullName?: string;
+  profilePhoto?: string;
+  learningStyle?: 'visual' | 'auditory' | 'reading_writing' | 'kinesthetic';
+  gradeLevel?: string;
+  onboardingCompleted?: boolean;
   createdAt: string;
-  lastLogin?: string;
-  // OSCA specific fields
-  department?: string;
-  position?: string;
-  employeeId?: string;
-  // BASCA specific fields
-  barangay?: string;
-  barangayCode?: string;
-  // Senior specific fields
-  dateOfBirth?: string;
-  address?: string;
-  oscaId?: string;
-  emergencyContact?: {
-    name: string;
-    phone: string;
-    relationship: string;
-  };
+  updatedAt: string;
 }
 
 export interface AuthState {
@@ -37,33 +24,23 @@ export interface AuthState {
 export interface LoginCredentials {
   email: string;
   password: string;
-  role: 'osca' | 'basca' | 'senior';
+  role: 'student' | 'teacher'; // Make role required again for validation
 }
 
 export interface RegisterData {
   email: string;
   password: string;
   confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  role: 'osca' | 'basca' | 'senior';
-  // OSCA specific
-  department?: string;
-  position?: string;
-  employeeId?: string;
-  // BASCA specific
-  barangay?: string;
-  barangayCode?: string;
-  // Senior specific
-  dateOfBirth?: string;
-  address?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelationship?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  fullName?: string;
+  role: 'student' | 'teacher';
+  gradeLevel?: string;
+  learningStyle?: 'visual' | 'auditory' | 'reading_writing' | 'kinesthetic';
 }
 
 export interface ForgotPasswordData {
   email: string;
-  role: 'osca' | 'basca' | 'senior';
+  role?: 'student' | 'teacher'; // Make role optional since it's not needed for password reset
 }
