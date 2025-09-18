@@ -200,7 +200,28 @@ export function usePWA(): PWAState & PWAActions {
         try {
           // Process sync item based on operation
           await processSyncItem(item);
+
+          // Remove from sync queue
           await db.removeSyncItem(item.id);
+
+          // Also remove the actual senior record from local storage after successful sync
+          if (
+            item.operation === 'CREATE_SENIOR' ||
+            item.operation === 'UPDATE_SENIOR'
+          ) {
+            try {
+              await db.delete('seniors', item.data.id);
+              console.log(
+                'Removed synced senior from local storage:',
+                item.data.id
+              );
+            } catch (deleteError) {
+              console.warn(
+                'Failed to remove synced senior from local storage:',
+                deleteError
+              );
+            }
+          }
         } catch (error) {
           console.error('Failed to sync item:', item, error);
 

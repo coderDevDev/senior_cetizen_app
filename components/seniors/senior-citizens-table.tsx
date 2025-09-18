@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   TableBody,
@@ -125,8 +125,8 @@ export function SeniorCitizensTable({
             const isExpanded = expandedRow === senior.id;
 
             return (
-              <>
-                <TableRow key={senior.id} className="hover:bg-gray-50">
+              <React.Fragment key={senior.id}>
+                <TableRow className="hover:bg-gray-50">
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -378,7 +378,7 @@ export function SeniorCitizensTable({
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </TableBody>
