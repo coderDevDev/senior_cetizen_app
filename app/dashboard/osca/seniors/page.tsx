@@ -63,6 +63,7 @@ export default function OSCASeniorsPage() {
         barangayFilter !== 'all' ? barangayFilter : undefined
       );
 
+      console.log({ result });
       if (result.success && result.data) {
         // Transform database data to match our SeniorCitizen type
         const transformedSeniors: SeniorCitizen[] = result.data.map(
@@ -130,6 +131,7 @@ export default function OSCASeniorsPage() {
         );
 
         setSeniors(transformedSeniors);
+        setIsLoading(false);
       } else {
         throw new Error('Failed to fetch seniors data');
       }
@@ -494,20 +496,21 @@ export default function OSCASeniorsPage() {
                     <p className="text-sm font-semibold text-[#666666] uppercase tracking-wide">
                       {stat.title}
                     </p>
-                    <p className="text-3xl font-bold text-[#333333] mt-2">
-                      {isLoading ? (
-                        <div className="w-16 h-8 bg-gray-200 rounded animate-pulse"></div>
-                      ) : (
-                        stat.value
-                      )}
-                    </p>
-                    <p className={`text-sm font-medium ${stat.textColor} mt-1`}>
-                      {isLoading ? (
-                        <div className="w-12 h-4 bg-gray-200 rounded animate-pulse"></div>
-                      ) : (
-                        stat.change
-                      )}
-                    </p>
+                    {isLoading ? (
+                      <div className="w-16 h-8 bg-gray-200 rounded animate-pulse mt-2"></div>
+                    ) : (
+                      <p className="text-3xl font-bold text-[#333333] mt-2">
+                        {stat.value}
+                      </p>
+                    )}
+                    {isLoading ? (
+                      <div className="w-12 h-4 bg-gray-200 rounded animate-pulse mt-1"></div>
+                    ) : (
+                      <p
+                        className={`text-sm font-medium ${stat.textColor} mt-1`}>
+                        {stat.change}
+                      </p>
+                    )}
                   </div>
                   <div
                     className={`p-4 rounded-2xl ${stat.color} bg-opacity-10 backdrop-blur-sm`}>
