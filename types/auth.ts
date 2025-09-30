@@ -24,7 +24,7 @@ export interface AuthState {
 export interface LoginCredentials {
   email: string;
   password: string;
-  role: 'student' | 'teacher'; // Make role required again for validation
+  role?: 'student' | 'teacher'; // Make role optional for flexible login
 }
 
 export interface RegisterData {

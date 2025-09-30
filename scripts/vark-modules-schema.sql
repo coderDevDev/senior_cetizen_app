@@ -1,5 +1,5 @@
     -- VARK Modules Database Schema
-    -- This schema extends the existing learning management system with VARK-specific content
+    -- This schema extends the existing Cellular Reproduction Learning Module with VARK-specific content
 
     -- Create custom types
     CREATE TYPE IF NOT EXISTS progress_status AS ENUM ('not_started', 'in_progress', 'completed', 'paused');

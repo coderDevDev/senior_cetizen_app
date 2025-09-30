@@ -73,7 +73,7 @@ export default function TeacherLayout({
                 <GraduationCapIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">EduHub</h1>
+                <h1 className="text-xl font-bold text-gray-900">CRLM</h1>
                 <p className="text-sm text-gray-500">Teacher Portal</p>
               </div>
             </div>

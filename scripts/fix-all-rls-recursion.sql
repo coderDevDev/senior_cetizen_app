@@ -175,3 +175,7 @@ CREATE POLICY "Teachers manage class assignees for own activities" ON public.act
 SELECT 'All RLS infinite recursion issues fixed successfully!' as message;
 
 
+
+
+
+

@@ -9,7 +9,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, ArrowLeft, Shield, User, BookOpen } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  ArrowRight,
+  Shield,
+  User,
+  BookOpen
+} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -73,9 +82,9 @@ export default function RegisterPage() {
       title: 'Student Sign Up',
       subtitle: 'Learning Portal',
       description: 'Access lessons, take quizzes, and submit activities',
-      color: 'text-[#ffd416]',
-      bgColor: 'bg-[#ffd416]',
-      borderColor: 'border-[#ffd416]'
+      color: 'text-[#00af8f]',
+      bgColor: 'bg-[#00af8f]',
+      borderColor: 'border-[#00af8f]'
     }
   } as const;
 
@@ -96,6 +105,11 @@ export default function RegisterPage() {
         role: selectedRole
       });
 
+      console.log({ selectedRole });
+
+      // Small delay to allow authentication state to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Redirect based on role according to features.txt
       if (selectedRole === 'teacher') {
         router.push('/teacher/dashboard');
@@ -104,90 +118,115 @@ export default function RegisterPage() {
         router.push('/onboarding/vark');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      // Error handling is now done by Sonner toast in auth.ts
+      // Just set a generic error for the UI state
+      setError('Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        {/* Background Decorations */}
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-[#00af8f]/20 rounded-full blur-2xl" />
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-[#ffd416]/20 rounded-full blur-2xl" />
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 relative overflow-hidden flex items-center justify-center p-2 sm:p-4">
+      {/* Enhanced Background Decorations - Mobile Optimized */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 left-10 sm:top-20 sm:left-20 w-48 h-48 sm:w-72 sm:h-72 bg-gradient-to-r from-[#00af8f]/20 to-[#00af8f]/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-10 right-10 sm:bottom-20 sm:right-20 w-56 h-56 sm:w-80 sm:h-80 bg-gradient-to-r from-[#00af8f]/15 to-teal-400/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-[#00af8f]/10 to-teal-400/10 rounded-full blur-3xl animate-pulse delay-500" />
+        <div className="hidden lg:block absolute top-40 right-40 w-64 h-64 bg-gradient-to-r from-teal-400/15 to-[#00af8f]/15 rounded-full blur-3xl animate-pulse delay-700" />
+        <div className="hidden lg:block absolute bottom-40 left-40 w-56 h-56 bg-gradient-to-r from-[#00af8f]/15 to-teal-400/15 rounded-full blur-3xl animate-pulse delay-300" />
+      </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
+      <div className="w-full max-w-2xl lg:max-w-xl xl:max-w-2xl relative z-10 py-4 sm:py-6 lg:py-8">
+        {/* Compact Header - Responsive Optimized */}
+        <div className="text-center mb-4 sm:mb-5 lg:mb-6">
           <Link
             href="/auth/login"
-            className="absolute top-4 left-4 text-[#666666] hover:text-[#333333] inline-flex items-center">
-            <ArrowLeft className="w-5 h-5 mr-2" />
+            className="absolute top-2 left-2 sm:top-4 sm:left-4 text-gray-600 hover:text-[#00af8f] inline-flex items-center text-sm sm:text-base">
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
             Back to Login
           </Link>
 
-          <div className="flex items-center justify-center mb-6">
-            <div className="w-16 h-16 bg-[#00af8f] rounded-2xl flex items-center justify-center shadow-lg">
-              <BookOpen className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-center mb-2 sm:mb-3 lg:mb-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xl">
+              <BookOpen className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
             </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-[#333333] mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 mb-1 sm:mb-2">
             Create Account
           </h1>
-          <p className="text-lg text-[#666666]">Join the learning community</p>
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 mb-2 sm:mb-3 px-4">
+            Join the learning community
+          </p>
         </div>
 
-        {/* Role Selection */}
-        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm mb-6">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl font-bold text-[#333333]">
+        {/* Role Selection Tabs */}
+        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-4 sm:mb-5 lg:mb-6 group hover:shadow-2xl transition-all duration-300">
+          <CardHeader className="text-center pb-3 sm:pb-4 px-4 sm:px-5 lg:px-6">
+            <CardTitle className="text-lg sm:text-xl font-bold text-gray-900 mb-1">
               Choose Your Role
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              {(['student', 'teacher'] as const).map(role => (
-                <Button
-                  key={role}
-                  type="button"
-                  variant={selectedRole === role ? 'default' : 'outline'}
-                  className={`h-20 flex flex-col items-center justify-center space-y-2 transition-all ${
-                    selectedRole === role
-                      ? `${roleConfig[role].bgColor} text-white`
-                      : 'border-2 hover:border-[#00af8f]'
-                  }`}
-                  onClick={() => handleRoleChange(role)}>
-                  {(() => {
-                    const IconComponent = roleConfig[role].icon;
-                    return <IconComponent className="w-6 h-6" />;
-                  })()}
-                  <span className="font-medium capitalize">{role}</span>
-                </Button>
-              ))}
-            </div>
+          <CardContent className="p-4 sm:p-5 lg:p-6">
+            <Tabs
+              value={selectedRole}
+              onValueChange={value =>
+                handleRoleChange(value as 'student' | 'teacher')
+              }
+              className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-14 sm:h-16 bg-gray-100 rounded-lg p-1">
+                {(['student', 'teacher'] as const).map(role => (
+                  <TabsTrigger
+                    key={role}
+                    value={role}
+                    className="flex flex-col items-center justify-center space-y-1 h-full data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#00af8f] data-[state=active]:to-[#00af90] data-[state=active]:text-white data-[state=active]:shadow-md data-[state=inactive]:text-gray-600 data-[state=inactive]:hover:text-[#00af8f] rounded-md transition-all duration-200">
+                    {/* Icon Container */}
+                    <div
+                      className={`w-5 h-5 sm:w-6 sm:h-6 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                        selectedRole === role
+                          ? 'bg-white/25'
+                          : 'bg-gradient-to-br from-[#00af8f] to-[#00af90]'
+                      }`}>
+                      {(() => {
+                        const IconComponent = roleConfig[role].icon;
+                        return (
+                          <IconComponent className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                        );
+                      })()}
+                    </div>
+
+                    {/* Role Text */}
+                    <div className="text-center">
+                      <div className="font-semibold text-xs capitalize">
+                        {role}
+                      </div>
+                    </div>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
           </CardContent>
         </Card>
 
         {/* Register Form */}
-        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl font-bold text-[#333333]">
+        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm group hover:shadow-2xl transition-all duration-300">
+          <CardHeader className="text-center pb-3 sm:pb-4 px-4 sm:px-5 lg:px-6">
+            <CardTitle className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
               {config.title}
             </CardTitle>
-            <p className="text-[#666666]">{config.description}</p>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <CardContent className="p-4 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 lg:space-y-6">
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="space-y-3 sm:space-y-4 lg:space-y-5">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label
                     htmlFor="firstName"
@@ -198,7 +237,7 @@ export default function RegisterPage() {
                     id="firstName"
                     type="text"
                     placeholder="Juan"
-                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    className="h-10 sm:h-11 lg:h-12 text-sm sm:text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-lg sm:rounded-xl transition-all duration-300 hover:border-[#00af8f]/50"
                     {...register('firstName')}
                   />
                   {errors.firstName && (
@@ -217,7 +256,7 @@ export default function RegisterPage() {
                     id="middleName"
                     type="text"
                     placeholder="Santos"
-                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    className="h-10 sm:h-11 lg:h-12 text-sm sm:text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-lg sm:rounded-xl transition-all duration-300 hover:border-[#00af8f]/50"
                     {...register('middleName')}
                   />
                 </div>
@@ -231,7 +270,7 @@ export default function RegisterPage() {
                     id="lastName"
                     type="text"
                     placeholder="Dela Cruz"
-                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    className="h-10 sm:h-11 lg:h-12 text-sm sm:text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-lg sm:rounded-xl transition-all duration-300 hover:border-[#00af8f]/50"
                     {...register('lastName')}
                   />
                   {errors.lastName && (
@@ -269,13 +308,13 @@ export default function RegisterPage() {
                     id="gradeLevel"
                     type="text"
                     placeholder="Grade 6"
-                    className="h-12 text-lg border-2 border-[#E0DDD8] focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-xl"
+                    className="h-10 sm:h-11 lg:h-12 text-sm sm:text-base border-2 border-gray-200 focus:border-[#00af8f] focus:ring-2 focus:ring-[#00af8f]/20 rounded-lg sm:rounded-xl transition-all duration-300 hover:border-[#00af8f]/50"
                     {...register('gradeLevel')}
                   />
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <Label
                     htmlFor="password"
@@ -350,24 +389,32 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full h-12 text-lg font-semibold text-white shadow-lg transition-all duration-300 rounded-xl ${
-                  isLoading
-                    ? 'bg-[#666666] cursor-not-allowed'
-                    : `${config.bgColor} hover:shadow-xl hover:scale-105 active:scale-95`
-                }`}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm sm:text-base font-bold text-white bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] shadow-xl transition-all duration-300 rounded-lg sm:rounded-xl hover:shadow-2xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                {isLoading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Creating Account...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center space-x-2">
+                    <span>Create Account</span>
+                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                )}
               </Button>
             </form>
 
-            <div className="text-center">
-              <p className="text-[#666666]">
-                Already have an account?{' '}
+            <div className="text-center space-y-3 sm:space-y-4 pt-3 sm:pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-2">
+                <p className="text-gray-600 text-xs sm:text-sm">
+                  Already have an account?
+                </p>
                 <Link
                   href="/auth/login"
-                  className="text-[#00af8f] hover:text-[#00af90] font-medium">
+                  className="text-[#00af8f] hover:text-[#00af90] font-bold text-xs sm:text-sm transition-colors duration-200 hover:underline">
                   Sign in here
                 </Link>
-              </p>
+              </div>
             </div>
           </CardContent>
         </Card>

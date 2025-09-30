@@ -274,3 +274,8 @@ SELECT 'Next steps:' as info;
 SELECT '1. Update your sample data to use the Biology category ID shown above' as step;
 SELECT '2. Try creating a VARK module again' as step;
 SELECT '3. The module_metadata column error should be resolved' as step;
+
+
+
+
+

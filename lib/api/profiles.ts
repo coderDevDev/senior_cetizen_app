@@ -48,6 +48,7 @@ export class ProfileAPI {
 
       console.log('Profile updates to apply:', profileUpdates);
 
+      console.log('Updating profile with ID:', updates.id);
       // Use admin client to bypass RLS for profile updates
       const { data, error } = await supabaseAdmin
         .from('profiles')
@@ -55,6 +56,8 @@ export class ProfileAPI {
         .eq('id', updates.id)
         .select('*')
         .single();
+
+      console.log('Profile update result:', { data, error });
 
       if (error) {
         console.error('Profile update error:', error);
@@ -193,5 +196,3 @@ export class ProfileAPI {
     }
   }
 }
-
-

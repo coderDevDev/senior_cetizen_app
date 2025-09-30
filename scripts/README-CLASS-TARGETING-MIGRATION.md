@@ -117,3 +117,8 @@ If you encounter issues:
 1. Check the migration script output for error messages
 2. Verify your database schema in Supabase dashboard
 3. Ensure all environment variables are set correctly
+
+
+
+
+

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import {
   BookOpen,
   Eye,
@@ -15,7 +16,13 @@ import {
   CheckCircle,
   ArrowRight,
   ArrowLeft,
-  Star
+  Star,
+  Brain,
+  Target,
+  Users,
+  FileText,
+  PlayCircle,
+  BarChart3
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -25,35 +32,36 @@ interface LearningStatement {
   category: 'visual' | 'auditory' | 'kinesthetic' | 'reading_writing';
 }
 
+// Updated questions based on the instrument file
 const learningStatements: LearningStatement[] = [
   {
     id: 1,
     statement:
-      'I prefer to learn through animations and videos that illustrate the concept clearly.',
+      'I prefer to learn through animations and videos that illustrate mitosis and meiosis.',
     category: 'visual'
   },
   {
     id: 2,
     statement:
-      "I prefer to learn by listening to someone's instruction and explanation rather than reading.",
+      "I prefer to learn by listening to someone's instruction and explanation rather than reading about cellular reproduction.",
     category: 'auditory'
   },
   {
     id: 3,
     statement:
-      'I prefer to learn when I can participate and be involved actively in the discussion.',
+      'I prefer to learn when I can participate and actively involve in the discussion.',
     category: 'kinesthetic'
   },
   {
     id: 4,
     statement:
-      'I prefer to learn through reading detailed discussions of the topic.',
+      'I prefer to learn through reading detailed discussions about cellular reproduction.',
     category: 'reading_writing'
   },
   {
     id: 5,
     statement:
-      'I prefer to watch video presentations with step-by-step explanations to visualize and understand the concept clearly.',
+      'I prefer to watch video presentations with step-by-step explanations to visualize and understand the concept of cellular reproduction clearly.',
     category: 'visual'
   },
   {
@@ -70,19 +78,20 @@ const learningStatements: LearningStatement[] = [
   },
   {
     id: 8,
-    statement: 'I prefer to take down notes and use them as learning material.',
+    statement:
+      'I prefer to take down notes and use them as a learning material.',
     category: 'reading_writing'
   },
   {
     id: 9,
     statement:
-      'I prefer to use a diagram and concept maps in learning complex biology concepts.',
+      'I prefer to use diagrams and concept maps in learning complex concepts like cellular reproduction.',
     category: 'visual'
   },
   {
     id: 10,
     statement:
-      'I prefer to use verbal and audio instructions to guide my learning about a certain concept.',
+      'I prefer to use verbal and audio instructions to guide my learning about cellular reproduction.',
     category: 'auditory'
   },
   {
@@ -100,7 +109,7 @@ const learningStatements: LearningStatement[] = [
   {
     id: 13,
     statement:
-      'I prefer to learn using interactive charts that visually demonstrate biological processes.',
+      'I prefer to learn using interactive charts that visually demonstrate biological processes like cellular reproduction.',
     category: 'visual'
   },
   {
@@ -123,7 +132,7 @@ const learningStatements: LearningStatement[] = [
   {
     id: 17,
     statement:
-      'I prefer to use colored-contents and images materials in learning biological processes.',
+      'I prefer to use colored contents and images materials in learning biological processes.',
     category: 'visual'
   },
   {
@@ -135,7 +144,7 @@ const learningStatements: LearningStatement[] = [
   {
     id: 19,
     statement:
-      'I prefer to learn through exploring and manipulating various materials to understand the concept better.',
+      'I prefer to learn through exploring and manipulating various materials to understand cellular reproduction better.',
     category: 'kinesthetic'
   },
   {
@@ -153,9 +162,10 @@ const learningStyleInfo = {
       'You learn best through seeing and observing. You prefer pictures, diagrams, charts, and visual aids.',
     icon: Eye,
     color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
-    borderColor: 'border-blue-300',
-    gradient: 'from-blue-400 to-blue-600'
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    gradient: 'from-blue-400 to-blue-600',
+    emoji: '👁️'
   },
   auditory: {
     title: 'Auditory Learner',
@@ -163,9 +173,10 @@ const learningStyleInfo = {
       'You learn best through listening and speaking. You prefer discussions, lectures, and verbal explanations.',
     icon: Headphones,
     color: 'text-green-600',
-    bgColor: 'bg-green-100',
-    borderColor: 'border-green-300',
-    gradient: 'from-green-400 to-green-600'
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    gradient: 'from-green-400 to-green-600',
+    emoji: '🎧'
   },
   reading_writing: {
     title: 'Reading/Writing Learner',
@@ -173,9 +184,10 @@ const learningStyleInfo = {
       'You learn best through reading and writing. You prefer text-based materials, note-taking, and written assignments.',
     icon: PenTool,
     color: 'text-purple-600',
-    bgColor: 'bg-purple-100',
-    borderColor: 'border-purple-300',
-    gradient: 'from-purple-400 to-purple-600'
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    gradient: 'from-purple-400 to-purple-600',
+    emoji: '✍️'
   },
   kinesthetic: {
     title: 'Kinesthetic Learner',
@@ -183,10 +195,19 @@ const learningStyleInfo = {
       'You learn best through movement and hands-on experience. You prefer physical activities, experiments, and real-world applications.',
     icon: Zap,
     color: 'text-orange-600',
-    bgColor: 'bg-orange-100',
-    borderColor: 'border-orange-300',
-    gradient: 'from-orange-400 to-orange-600'
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-200',
+    gradient: 'from-orange-400 to-orange-600',
+    emoji: '🖐️'
   }
+};
+
+const scaleLabels = {
+  1: { label: 'Strongly Disagree', emoji: '😞', color: 'text-red-600' },
+  2: { label: 'Disagree', emoji: '😐', color: 'text-red-500' },
+  3: { label: 'Undecided', emoji: '🤷', color: 'text-gray-500' },
+  4: { label: 'Agree', emoji: '😊', color: 'text-green-500' },
+  5: { label: 'Strongly Agree', emoji: '🎉', color: 'text-green-600' }
 };
 
 export default function VARKOnboardingPage() {
@@ -195,22 +216,42 @@ export default function VARKOnboardingPage() {
 
   console.log('VARKOnboardingPage render - user:', user);
   console.log('VARKOnboardingPage render - updateProfile:', updateProfile);
+
   const [currentStatement, setCurrentStatement] = useState(0);
-  const [answers, setAnswers] = useState<
-    Record<number, number> & { dominantStyle?: keyof typeof learningStyleInfo }
-  >({});
+  const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [answeredCount, setAnsweredCount] = useState(0);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+
+  // Handle user loading state
+  useEffect(() => {
+    if (user !== null) {
+      setIsLoadingUser(false);
+    } else {
+      // If user is null, wait a bit for auth state to update
+      const timer = setTimeout(() => {
+        setIsLoadingUser(false);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  // Redirect to login if no user after loading
+  useEffect(() => {
+    if (!isLoadingUser && !user) {
+      console.log('No user found, redirecting to login...');
+      router.push('/auth/login');
+    }
+  }, [isLoadingUser, user, router]);
 
   const progress = ((currentStatement + 1) / learningStatements.length) * 100;
   const currentStatementData = learningStatements[currentStatement];
 
   // Update answered count when answers change
   useEffect(() => {
-    const count = Object.keys(answers).filter(
-      key => key !== 'dominantStyle'
-    ).length;
+    const count = Object.keys(answers).length;
     setAnsweredCount(count);
   }, [answers]);
 
@@ -253,18 +294,14 @@ export default function VARKOnboardingPage() {
         : b
     )[0] as keyof typeof learningStyleInfo;
 
-    setAnswers(prev => ({ ...prev, dominantStyle }));
     setShowResults(true);
   };
 
   const handleComplete = async () => {
+    console.log('=== handleComplete START ===');
     console.log('handleComplete called!');
     console.log('Current user:', user);
-    console.log('User ID:', user?.id);
-    console.log('User email:', user?.email);
-    console.log('User role:', user?.role);
     console.log('Current answers:', answers);
-    console.log('Dominant style:', answers.dominantStyle);
 
     if (!user) {
       toast({
@@ -275,23 +312,45 @@ export default function VARKOnboardingPage() {
       return;
     }
 
-    console.log('Setting isSubmitting to true');
     setIsSubmitting(true);
     try {
+      // Calculate final results
+      const scores = {
+        visual: 0,
+        auditory: 0,
+        reading_writing: 0,
+        kinesthetic: 0
+      };
+
+      learningStatements.forEach(statement => {
+        const rating = answers[statement.id] || 0;
+        scores[statement.category] += rating;
+      });
+
+      const dominantStyle = Object.entries(scores).reduce((a, b) =>
+        scores[a[0] as keyof typeof scores] >
+        scores[b[0] as keyof typeof scores]
+          ? a
+          : b
+      )[0] as keyof typeof learningStyleInfo;
+
       console.log('Updating profile with:', {
         id: user.id,
         role: user.role,
-        learningStyle: answers.dominantStyle,
+        learningStyle: dominantStyle,
         onboardingCompleted: true
       });
 
+      console.log('Calling updateProfile...');
       // Update user profile with learning style and mark onboarding as complete
       const result = await updateProfile({
         id: user.id,
-        role: user.role, // Include role field
-        learningStyle: answers.dominantStyle as keyof typeof learningStyleInfo,
+        role: user.role,
+        learningStyle: dominantStyle as keyof typeof learningStyleInfo,
         onboardingCompleted: true
       });
+
+      console.log('updateProfile result:', result);
 
       if (result.success) {
         toast({
@@ -322,22 +381,55 @@ export default function VARKOnboardingPage() {
     }
   };
 
+  // Show loading state while waiting for user
+  if (isLoadingUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <BookOpen className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-xl font-semibold text-[#333333] mb-2">
+            Loading...
+          </h2>
+          <p className="text-[#666666]">Setting up your learning profile</p>
+        </div>
+      </div>
+    );
+  }
+
   if (showResults) {
-    const dominantStyle =
-      answers.dominantStyle as keyof typeof learningStyleInfo;
+    const scores = {
+      visual: 0,
+      auditory: 0,
+      reading_writing: 0,
+      kinesthetic: 0
+    };
+
+    learningStatements.forEach(statement => {
+      const rating = answers[statement.id] || 0;
+      scores[statement.category] += rating;
+    });
+
+    const dominantStyle = Object.entries(scores).reduce((a, b) =>
+      scores[a[0] as keyof typeof scores] > scores[b[0] as keyof typeof scores]
+        ? a
+        : b
+    )[0] as keyof typeof learningStyleInfo;
+
     const styleInfo = learningStyleInfo[dominantStyle];
     const Icon = styleInfo.icon;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff] flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl">
           {/* Background Decorations */}
           <div className="absolute inset-0">
             <div className="absolute top-10 left-10 w-32 h-32 bg-[#00af8f]/20 rounded-full blur-2xl animate-pulse" />
             <div className="absolute bottom-10 right-10 w-40 h-40 bg-[#ffd416]/20 rounded-full blur-2xl animate-pulse" />
           </div>
 
-          <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm transform transition-all duration-500 hover:scale-105">
+          <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm transform transition-all duration-500 hover:scale-[1.02]">
             <CardHeader className="text-center pb-4">
               <div className="flex items-center justify-center mb-6">
                 <div
@@ -349,13 +441,59 @@ export default function VARKOnboardingPage() {
                 🎉 Congratulations!
               </CardTitle>
               <h2 className={`text-3xl font-semibold ${styleInfo.color} mb-4`}>
-                {styleInfo.title}
+                {styleInfo.emoji} {styleInfo.title}
               </h2>
               <p className="text-lg text-[#666666] max-w-md mx-auto leading-relaxed">
                 {styleInfo.description}
               </p>
             </CardHeader>
+
             <CardContent className="space-y-6">
+              {/* Score Breakdown */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
+                <h3 className="font-semibold text-[#333333] mb-4 flex items-center">
+                  <BarChart3 className="w-5 h-5 text-[#00af8f] mr-2" />
+                  Your Learning Style Scores
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {Object.entries(scores).map(([style, score]) => {
+                    const info =
+                      learningStyleInfo[
+                        style as keyof typeof learningStyleInfo
+                      ];
+                    const isDominant = style === dominantStyle;
+                    return (
+                      <div
+                        key={style}
+                        className={`p-4 rounded-lg border-2 transition-all duration-300 ${
+                          isDominant
+                            ? `${info.bgColor} ${info.borderColor}`
+                            : 'bg-white border-gray-200'
+                        }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-lg">{info.emoji}</span>
+                          {isDominant && (
+                            <Badge className="bg-[#00af8f] text-white">
+                              Dominant
+                            </Badge>
+                          )}
+                        </div>
+                        <div
+                          className={`font-bold text-lg ${
+                            isDominant ? info.color : 'text-gray-600'
+                          }`}>
+                          {score}/25
+                        </div>
+                        <div className="text-sm text-gray-600 capitalize">
+                          {info.title}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Benefits */}
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
                 <h3 className="font-semibold text-[#333333] mb-3 flex items-center">
                   <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
@@ -377,29 +515,9 @@ export default function VARKOnboardingPage() {
                 </ul>
               </div>
 
-              {/* Debug Info - Remove this in production */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-                <h4 className="font-semibold text-yellow-800 mb-2">
-                  Debug Info:
-                </h4>
-                <div className="space-y-1 text-yellow-700">
-                  <div>User exists: {user ? '✅ Yes' : '❌ No'}</div>
-                  <div>
-                    Dominant style: {answers.dominantStyle || 'Not set'}
-                  </div>
-                  <div>Is submitting: {isSubmitting ? 'Yes' : 'No'}</div>
-                  <div>
-                    Button disabled:{' '}
-                    {isSubmitting || !user || !answers.dominantStyle
-                      ? 'Yes'
-                      : 'No'}
-                  </div>
-                </div>
-              </div>
-
               <Button
                 onClick={handleComplete}
-                disabled={isSubmitting || !user || !answers.dominantStyle}
+                disabled={isSubmitting}
                 className="w-full h-14 text-lg font-semibold text-white bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] shadow-lg transition-all duration-300 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed">
                 {isSubmitting ? (
                   <div className="flex items-center space-x-2">
@@ -421,8 +539,8 @@ export default function VARKOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff] flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl">
         {/* Background Decorations */}
         <div className="absolute inset-0">
           <div className="absolute top-10 left-10 w-32 h-32 bg-[#00af8f]/20 rounded-full blur-2xl animate-pulse" />
@@ -433,7 +551,7 @@ export default function VARKOnboardingPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
             <div className="w-20 h-20 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-3xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
-              <BookOpen className="w-10 h-10 text-white" />
+              <Brain className="w-10 h-10 text-white" />
             </div>
           </div>
 
@@ -444,47 +562,54 @@ export default function VARKOnboardingPage() {
             Help us personalize your learning experience by understanding how
             you learn best
           </p>
-          <p className="text-sm text-[#666666] bg-blue-50 px-4 py-2 rounded-full inline-block border border-blue-200">
-            📝 Rate each statement from 1 (Strongly Disagree) to 5 (Strongly
-            Agree)
-          </p>
+          <div className="flex items-center justify-center space-x-2 text-sm text-[#666666] bg-blue-50 px-4 py-2 rounded-full inline-block border border-blue-200">
+            <Target className="w-4 h-4" />
+            <span>
+              Rate each statement from 1 (Strongly Disagree) to 5 (Strongly
+              Agree)
+            </span>
+          </div>
         </div>
 
         {/* Progress Section */}
-        <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center space-x-3">
-              <span className="text-lg font-semibold text-[#333333]">
-                Statement {currentStatement + 1} of {learningStatements.length}
-              </span>
-              <span className="text-sm text-[#666666] bg-gray-100 px-3 py-1 rounded-full">
-                {answeredCount} answered
+        <Card className="mb-8 shadow-lg border-0 bg-white/95 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center space-x-3">
+                <span className="text-lg font-semibold text-[#333333]">
+                  Question {currentStatement + 1} of {learningStatements.length}
+                </span>
+                <Badge
+                  variant="secondary"
+                  className="bg-[#00af8f]/10 text-[#00af8f] border-[#00af8f]/20">
+                  {answeredCount} answered
+                </Badge>
+              </div>
+              <span className="text-lg font-bold text-[#00af8f]">
+                {Math.round(progress)}% Complete
               </span>
             </div>
-            <span className="text-lg font-bold text-[#00af8f]">
-              {Math.round(progress)}% Complete
-            </span>
-          </div>
-          <Progress value={progress} className="h-3 bg-gray-200" />
+            <Progress value={progress} className="h-3 bg-gray-200" />
 
-          {/* Progress Bar with answered indicators */}
-          <div className="flex justify-between mt-3">
-            {learningStatements.map((_, index) => (
-              <div
-                key={index}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentStatement
-                    ? 'bg-[#00af8f] scale-125'
-                    : answers[index + 1]
-                    ? 'bg-green-400'
-                    : 'bg-gray-300'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+            {/* Progress Indicators */}
+            <div className="flex justify-between mt-3">
+              {learningStatements.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index === currentStatement
+                      ? 'bg-[#00af8f] scale-125'
+                      : answers[index + 1]
+                      ? 'bg-green-400'
+                      : 'bg-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Statement Card */}
+        {/* Question Card */}
         <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm transform transition-all duration-300 hover:shadow-3xl">
           <CardHeader className="text-center pb-6">
             <div className="flex items-center justify-center mb-4">
@@ -498,6 +623,7 @@ export default function VARKOnboardingPage() {
               </CardTitle>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-8">
             {/* Rating Scale */}
             <div className="text-center">
@@ -506,37 +632,46 @@ export default function VARKOnboardingPage() {
                   Strongly Disagree
                 </span>
                 <div className="flex space-x-3">
-                  {[1, 2, 3, 4, 5].map(rating => (
-                    <Button
-                      key={rating}
-                      type="button"
-                      variant={
-                        answers[currentStatementData.id] === rating
-                          ? 'default'
-                          : 'outline'
-                      }
-                      className={`w-16 h-16 rounded-full text-lg font-bold transition-all duration-300 transform hover:scale-110 ${
-                        answers[currentStatementData.id] === rating
-                          ? 'bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white border-[#00af8f] shadow-lg scale-110'
-                          : 'hover:border-[#00af8f] hover:bg-[#00af8f]/5 hover:shadow-md'
-                      }`}
-                      onClick={() => handleRating(rating)}>
-                      {rating}
-                    </Button>
-                  ))}
+                  {[1, 2, 3, 4, 5].map(rating => {
+                    const scaleInfo =
+                      scaleLabels[rating as keyof typeof scaleLabels];
+                    const isSelected =
+                      answers[currentStatementData.id] === rating;
+                    return (
+                      <Button
+                        key={rating}
+                        type="button"
+                        variant="outline"
+                        className={`w-16 h-16 rounded-full text-lg font-bold transition-all duration-300 transform hover:scale-110 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white border-[#00af8f] shadow-lg scale-110'
+                            : 'hover:border-[#00af8f] hover:bg-[#00af8f]/5 hover:shadow-md'
+                        }`}
+                        onClick={() => handleRating(rating)}>
+                        <div className="flex flex-col items-center">
+                          <span className="text-sm">{scaleInfo.emoji}</span>
+                          <span className="text-xs">{rating}</span>
+                        </div>
+                      </Button>
+                    );
+                  })}
                 </div>
                 <span className="text-sm text-[#666666] font-medium">
                   Strongly Agree
                 </span>
               </div>
 
-              {/* Rating Labels */}
+              {/* Scale Labels */}
               <div className="flex justify-between text-xs text-[#666666] px-8 font-medium">
-                <span>1</span>
-                <span>2</span>
-                <span>3</span>
-                <span>4</span>
-                <span>5</span>
+                {[1, 2, 3, 4, 5].map(rating => (
+                  <span
+                    key={rating}
+                    className={
+                      scaleLabels[rating as keyof typeof scaleLabels].color
+                    }>
+                    {rating}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -550,13 +685,13 @@ export default function VARKOnboardingPage() {
                   </span>
                 </p>
                 <p className="text-sm text-[#666666] mt-1">
-                  {answers[currentStatementData.id] === 1 &&
-                    '🤔 Strongly Disagree'}
-                  {answers[currentStatementData.id] === 2 && '😐 Disagree'}
-                  {answers[currentStatementData.id] === 3 && '🤷 Undecided'}
-                  {answers[currentStatementData.id] === 4 && '😊 Agree'}
-                  {answers[currentStatementData.id] === 5 &&
-                    '🎉 Strongly Agree'}
+                  {
+                    scaleLabels[
+                      answers[
+                        currentStatementData.id
+                      ] as keyof typeof scaleLabels
+                    ].label
+                  }
                 </p>
               </div>
             )} */}

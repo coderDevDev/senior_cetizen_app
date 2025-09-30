@@ -24,3 +24,8 @@ FROM information_schema.columns
 WHERE table_name = 'vark_modules' 
 AND column_name IN ('target_class_id', 'target_learning_styles')
 ORDER BY column_name;
+
+
+
+
+

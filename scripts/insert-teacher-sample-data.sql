@@ -134,3 +134,7 @@ SELECT
   (SELECT COUNT(*) FROM public.submissions s JOIN public.activities a ON s.activity_id = a.id WHERE a.assigned_by = 'TEACHER_USER_ID' AND s.score IS NULL) as pending_grades;
 
 
+
+
+
+
