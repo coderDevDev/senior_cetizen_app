@@ -24,7 +24,7 @@ import {
   PlayCircle,
   BarChart3
 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface LearningStatement {
   id: number;
@@ -214,8 +214,8 @@ export default function VARKOnboardingPage() {
   const { user, updateProfile } = useAuth();
   const router = useRouter();
 
-  console.log('VARKOnboardingPage render - user:', user);
-  console.log('VARKOnboardingPage render - updateProfile:', updateProfile);
+  // console.log('VARKOnboardingPage render - user:', user);
+  // console.log('VARKOnboardingPage render - updateProfile:', updateProfile);
 
   const [currentStatement, setCurrentStatement] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -304,11 +304,7 @@ export default function VARKOnboardingPage() {
     console.log('Current answers:', answers);
 
     if (!user) {
-      toast({
-        title: 'Error',
-        description: 'User not found. Please log in again.',
-        variant: 'destructive'
-      });
+      toast.error('User not found. Please log in again.');
       return;
     }
 
@@ -342,19 +338,28 @@ export default function VARKOnboardingPage() {
       });
 
       console.log('Calling updateProfile...');
-      // Update user profile with learning style and mark onboarding as complete
-      const result = await updateProfile({
+
+      // Add timeout to prevent hanging
+      const updateProfilePromise = updateProfile({
         id: user.id,
         role: user.role,
         learningStyle: dominantStyle as keyof typeof learningStyleInfo,
         onboardingCompleted: true
       });
 
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile update timeout')), 15000)
+      );
+
+      const result = (await Promise.race([
+        updateProfilePromise,
+        timeoutPromise
+      ])) as any;
+
       console.log('updateProfile result:', result);
 
       if (result.success) {
-        toast({
-          title: 'Success!',
+        toast.success('Success!', {
           description:
             'Your learning style has been saved. Redirecting to dashboard...'
         });
@@ -368,14 +373,22 @@ export default function VARKOnboardingPage() {
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
-      toast({
-        title: 'Error',
-        description:
-          error instanceof Error
-            ? error.message
-            : 'Failed to save your learning style. Please try again.',
-        variant: 'destructive'
-      });
+
+      if (
+        error instanceof Error &&
+        error.message === 'Profile update timeout'
+      ) {
+        toast.error('Timeout Error', {
+          description: 'Profile update is taking too long. Please try again.'
+        });
+      } else {
+        toast.error('Error', {
+          description:
+            error instanceof Error
+              ? error.message
+              : 'Failed to save your learning style. Please try again.'
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -421,37 +434,59 @@ export default function VARKOnboardingPage() {
     const Icon = styleInfo.icon;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
+      <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
+        {/* Modern Header */}
+        <div className="bg-white shadow-sm border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-xl flex items-center justify-center shadow-lg">
+                <Brain className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Assessment Complete
+                </h1>
+                <p className="text-gray-600">
+                  Your learning style has been identified
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Background Decorations */}
-          <div className="absolute inset-0">
-            <div className="absolute top-10 left-10 w-32 h-32 bg-[#00af8f]/20 rounded-full blur-2xl animate-pulse" />
-            <div className="absolute bottom-10 right-10 w-40 h-40 bg-[#ffd416]/20 rounded-full blur-2xl animate-pulse" />
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-20 left-20 w-32 h-32 bg-[#00af8f]/10 rounded-full blur-2xl animate-pulse" />
+            <div className="absolute bottom-20 right-20 w-40 h-40 bg-[#ffd416]/10 rounded-full blur-2xl animate-pulse" />
           </div>
 
-          <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm transform transition-all duration-500 hover:scale-[1.02]">
-            <CardHeader className="text-center pb-4">
-              <div className="flex items-center justify-center mb-6">
+          <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm transform transition-all duration-500 hover:shadow-2xl">
+            <CardHeader className="text-center pb-6">
+              <div className="flex flex-col items-center space-y-6">
                 <div
-                  className={`w-24 h-24 bg-gradient-to-br ${styleInfo.gradient} rounded-full flex items-center justify-center border-4 ${styleInfo.borderColor} shadow-lg transform animate-bounce`}>
-                  <Icon className="w-12 h-12 text-white" />
+                  className={`w-20 h-20 bg-gradient-to-br ${styleInfo.gradient} rounded-2xl flex items-center justify-center shadow-lg transform animate-bounce`}>
+                  <Icon className="w-10 h-10 text-white" />
+                </div>
+                <div className="space-y-3">
+                  <CardTitle className="text-3xl font-bold text-gray-900">
+                    🎉 Congratulations!
+                  </CardTitle>
+                  <h2 className={`text-2xl font-semibold ${styleInfo.color}`}>
+                    {styleInfo.emoji} {styleInfo.title}
+                  </h2>
+                  <p className="text-lg text-gray-600 max-w-lg mx-auto leading-relaxed">
+                    {styleInfo.description}
+                  </p>
                 </div>
               </div>
-              <CardTitle className="text-4xl font-bold text-[#333333] mb-2">
-                🎉 Congratulations!
-              </CardTitle>
-              <h2 className={`text-3xl font-semibold ${styleInfo.color} mb-4`}>
-                {styleInfo.emoji} {styleInfo.title}
-              </h2>
-              <p className="text-lg text-[#666666] max-w-md mx-auto leading-relaxed">
-                {styleInfo.description}
-              </p>
             </CardHeader>
 
             <CardContent className="space-y-6">
-              {/* Score Breakdown */}
-              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
-                <h3 className="font-semibold text-[#333333] mb-4 flex items-center">
+              {/* Modern Score Breakdown */}
+              <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <h3 className="font-semibold text-gray-900 mb-6 flex items-center">
                   <BarChart3 className="w-5 h-5 text-[#00af8f] mr-2" />
                   Your Learning Style Scores
                 </h3>
@@ -465,26 +500,26 @@ export default function VARKOnboardingPage() {
                     return (
                       <div
                         key={style}
-                        className={`p-4 rounded-lg border-2 transition-all duration-300 ${
+                        className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                           isDominant
-                            ? `${info.bgColor} ${info.borderColor}`
-                            : 'bg-white border-gray-200'
+                            ? `${info.bgColor} ${info.borderColor} shadow-md`
+                            : 'bg-gray-50 border-gray-200 hover:shadow-sm'
                         }`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-lg">{info.emoji}</span>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xl">{info.emoji}</span>
                           {isDominant && (
-                            <Badge className="bg-[#00af8f] text-white">
+                            <Badge className="bg-[#00af8f] text-white text-xs">
                               Dominant
                             </Badge>
                           )}
                         </div>
                         <div
-                          className={`font-bold text-lg ${
-                            isDominant ? info.color : 'text-gray-600'
+                          className={`font-bold text-xl ${
+                            isDominant ? info.color : 'text-gray-700'
                           }`}>
                           {score}/25
                         </div>
-                        <div className="text-sm text-gray-600 capitalize">
+                        <div className="text-sm text-gray-600 capitalize font-medium">
                           {info.title}
                         </div>
                       </div>
@@ -518,14 +553,16 @@ export default function VARKOnboardingPage() {
               <Button
                 onClick={handleComplete}
                 disabled={isSubmitting}
-                className="w-full h-14 text-lg font-semibold text-white bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] shadow-lg transition-all duration-300 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed">
+                className="w-full h-14 text-lg font-semibold text-white bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] shadow-lg transition-all duration-300 rounded-xl hover:shadow-xl hover:scale-105 active:scale-95 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:hover:scale-100">
                 {isSubmitting ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Saving your results...</span>
+                  <div className="flex items-center justify-center space-x-3">
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="text-lg">
+                      Saving your learning style...
+                    </span>
                   </div>
                 ) : (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-center space-x-2">
                     <span>Complete Setup & Continue</span>
                     <ArrowRight className="w-5 h-5" />
                   </div>
@@ -539,66 +576,98 @@ export default function VARKOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
-        {/* Background Decorations */}
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 w-32 h-32 bg-[#00af8f]/20 rounded-full blur-2xl animate-pulse" />
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-[#ffd416]/20 rounded-full blur-2xl animate-pulse" />
-        </div>
-
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-3xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
-              <Brain className="w-10 h-10 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-[#feffff] via-[#ffffff] to-[#feffff]">
+      {/* Modern Header */}
+      <div className="bg-white shadow-sm border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center space-x-3 mb-4 sm:mb-0">
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-xl flex items-center justify-center shadow-lg">
+                <Brain className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Learning Style Assessment
+                </h1>
+                <p className="text-gray-600">
+                  Help us personalize your learning experience by understanding
+                  how you learn best
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Badge
+                variant="secondary"
+                className="bg-[#00af8f]/10 text-[#00af8f] border-[#00af8f]/20">
+                <Target className="w-3 h-3 mr-1" />
+                VARK Assessment
+              </Badge>
             </div>
           </div>
+        </div>
+      </div>
 
-          <h1 className="text-4xl font-bold text-[#333333] mb-3">
-            Learning Style Assessment
-          </h1>
-          <p className="text-xl text-[#666666] mb-2">
-            Help us personalize your learning experience by understanding how
-            you learn best
-          </p>
-          <div className="flex items-center justify-center space-x-2 text-sm text-[#666666] bg-blue-50 px-4 py-2 rounded-full inline-block border border-blue-200">
-            <Target className="w-4 h-4" />
-            <span>
-              Rate each statement from 1 (Strongly Disagree) to 5 (Strongly
-              Agree)
-            </span>
-          </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Background Decorations */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-20 left-20 w-32 h-32 bg-[#00af8f]/10 rounded-full blur-2xl animate-pulse" />
+          <div className="absolute bottom-20 right-20 w-40 h-40 bg-[#ffd416]/10 rounded-full blur-2xl animate-pulse" />
         </div>
 
-        {/* Progress Section */}
+        {/* Modern Progress Section */}
         <Card className="mb-8 shadow-lg border-0 bg-white/95 backdrop-blur-sm">
           <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+              <div className="flex items-center space-x-3 mb-3 sm:mb-0">
+                <div className="w-10 h-10 bg-gradient-to-r from-[#00af8f] to-[#00af90] rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">
+                    {currentStatement + 1}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Question {currentStatement + 1} of{' '}
+                    {learningStatements.length}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Learning Style Assessment
+                  </p>
+                </div>
+              </div>
               <div className="flex items-center space-x-3">
-                <span className="text-lg font-semibold text-[#333333]">
-                  Question {currentStatement + 1} of {learningStatements.length}
-                </span>
                 <Badge
                   variant="secondary"
                   className="bg-[#00af8f]/10 text-[#00af8f] border-[#00af8f]/20">
                   {answeredCount} answered
                 </Badge>
+                {isSubmitting && (
+                  <Badge
+                    variant="secondary"
+                    className="bg-blue-100 text-blue-600 border-blue-200 animate-pulse">
+                    <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+                    Saving...
+                  </Badge>
+                )}
+                <div className="text-right">
+                  <div className="text-lg font-bold text-[#00af8f]">
+                    {Math.round(progress)}%
+                  </div>
+                  <div className="text-xs text-gray-500">Complete</div>
+                </div>
               </div>
-              <span className="text-lg font-bold text-[#00af8f]">
-                {Math.round(progress)}% Complete
-              </span>
             </div>
-            <Progress value={progress} className="h-3 bg-gray-200" />
 
-            {/* Progress Indicators */}
-            <div className="flex justify-between mt-3">
+            <Progress value={progress} className="h-2 bg-gray-200 mb-4" />
+
+            {/* Enhanced Progress Indicators */}
+            <div className="flex justify-between">
               {learningStatements.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
                     index === currentStatement
-                      ? 'bg-[#00af8f] scale-125'
+                      ? 'bg-[#00af8f] scale-150'
                       : answers[index + 1]
                       ? 'bg-green-400'
                       : 'bg-gray-300'
@@ -609,29 +678,39 @@ export default function VARKOnboardingPage() {
           </CardContent>
         </Card>
 
-        {/* Question Card */}
-        <Card className="shadow-2xl border-0 bg-white/95 backdrop-blur-sm transform transition-all duration-300 hover:shadow-3xl">
+        {/* Modern Question Card */}
+        <Card className="shadow-xl border-0 bg-white/95 backdrop-blur-sm transform transition-all duration-300 hover:shadow-2xl hover:scale-[1.01]">
           <CardHeader className="text-center pb-6">
-            <div className="flex items-center justify-center mb-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-full flex items-center justify-center mr-3">
-                <span className="text-white font-bold text-lg">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#00af8f] to-[#00af90] rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold text-xl">
                   {currentStatement + 1}
                 </span>
               </div>
-              <CardTitle className="text-2xl font-bold text-[#333333] max-w-3xl leading-relaxed">
+              <CardTitle className="text-2xl font-bold text-gray-900 max-w-4xl leading-relaxed">
                 {currentStatementData.statement}
               </CardTitle>
+              <div className="flex items-center space-x-2 text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-full">
+                <Target className="w-4 h-4" />
+                <span>
+                  Rate from 1 (Strongly Disagree) to 5 (Strongly Agree)
+                </span>
+              </div>
             </div>
           </CardHeader>
 
           <CardContent className="space-y-8">
-            {/* Rating Scale */}
+            {/* Modern Rating Scale */}
             <div className="text-center">
-              <div className="flex justify-center items-center space-x-6 mb-6">
-                <span className="text-sm text-[#666666] font-medium">
-                  Strongly Disagree
-                </span>
-                <div className="flex space-x-3">
+              <div className="flex flex-col items-center space-y-6">
+                {/* Scale Labels */}
+                <div className="flex justify-between w-full max-w-md text-xs text-gray-500 font-medium">
+                  <span>Strongly Disagree</span>
+                  <span>Strongly Agree</span>
+                </div>
+
+                {/* Rating Buttons */}
+                <div className="flex justify-center items-center space-x-4">
                   {[1, 2, 3, 4, 5].map(rating => {
                     const scaleInfo =
                       scaleLabels[rating as keyof typeof scaleLabels];
@@ -642,36 +721,41 @@ export default function VARKOnboardingPage() {
                         key={rating}
                         type="button"
                         variant="outline"
-                        className={`w-16 h-16 rounded-full text-lg font-bold transition-all duration-300 transform hover:scale-110 ${
+                        className={`w-14 h-14 rounded-xl text-lg font-bold transition-all duration-300 transform hover:scale-110 ${
                           isSelected
                             ? 'bg-gradient-to-br from-[#00af8f] to-[#00af90] text-white border-[#00af8f] shadow-lg scale-110'
-                            : 'hover:border-[#00af8f] hover:bg-[#00af8f]/5 hover:shadow-md'
+                            : 'hover:border-[#00af8f] hover:bg-[#00af8f]/5 hover:shadow-md border-gray-300'
                         }`}
                         onClick={() => handleRating(rating)}>
                         <div className="flex flex-col items-center">
                           <span className="text-sm">{scaleInfo.emoji}</span>
-                          <span className="text-xs">{rating}</span>
+                          <span className="text-xs font-bold">{rating}</span>
                         </div>
                       </Button>
                     );
                   })}
                 </div>
-                <span className="text-sm text-[#666666] font-medium">
-                  Strongly Agree
-                </span>
-              </div>
 
-              {/* Scale Labels */}
-              <div className="flex justify-between text-xs text-[#666666] px-8 font-medium">
-                {[1, 2, 3, 4, 5].map(rating => (
-                  <span
-                    key={rating}
-                    className={
-                      scaleLabels[rating as keyof typeof scaleLabels].color
-                    }>
-                    {rating}
-                  </span>
-                ))}
+                {/* Current Selection Display */}
+                {/* {answers[currentStatementData.id] && (
+                  <div className="bg-gradient-to-r from-[#00af8f]/10 to-[#00af90]/10 rounded-xl p-4 border border-[#00af8f]/20">
+                    <p className="text-lg text-gray-900 font-semibold">
+                      Your rating:{' '}
+                      <span className="text-[#00af8f] text-2xl font-bold">
+                        {answers[currentStatementData.id]}
+                      </span>
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {
+                        scaleLabels[
+                          answers[
+                            currentStatementData.id
+                          ] as keyof typeof scaleLabels
+                        ].label
+                      }
+                    </p>
+                  </div>
+                )} */}
               </div>
             </div>
 
@@ -696,30 +780,30 @@ export default function VARKOnboardingPage() {
               </div>
             )} */}
 
-            {/* Navigation Buttons */}
+            {/* Modern Navigation Buttons */}
             <div className="flex justify-between pt-6">
               <Button
                 variant="outline"
                 onClick={previousStatement}
-                disabled={currentStatement === 0}
-                className="px-8 h-14 text-lg font-semibold border-2 hover:bg-gray-50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                <ArrowLeft className="w-5 h-5 mr-2" />
+                disabled={currentStatement === 0 || isSubmitting}
+                className="px-6 h-12 text-base font-semibold border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ArrowLeft className="w-4 h-4 mr-2" />
                 Previous
               </Button>
 
               <Button
                 onClick={nextStatement}
-                disabled={!answers[currentStatementData.id]}
-                className="px-8 h-14 text-lg font-semibold bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] text-white shadow-lg transition-all duration-300 hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                disabled={!answers[currentStatementData.id] || isSubmitting}
+                className="px-8 h-12 text-base font-semibold bg-gradient-to-r from-[#00af8f] to-[#00af90] hover:from-[#00af90] hover:to-[#00af8f] text-white shadow-lg transition-all duration-300 hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
                 {currentStatement === learningStatements.length - 1 ? (
                   <>
                     <span>See Results</span>
-                    <CheckCircle className="w-5 h-5 ml-2" />
+                    <CheckCircle className="w-4 h-4 ml-2" />
                   </>
                 ) : (
                   <>
                     <span>Next</span>
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
               </Button>
